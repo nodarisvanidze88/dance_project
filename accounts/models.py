@@ -62,3 +62,12 @@ class CustomUser(AbstractBaseUser):
             'refresh': str(refresh),
             'access': str(refresh.access_token)
         }
+    def save(self, *args, **kwargs):
+        if not self.pk or not CustomUser.objects.filter(pk=self.pk).exists():
+            # New user, password hashing is handled by Django's default creation
+            super().save(*args, **kwargs)
+        else:
+            old_password = CustomUser.objects.get(pk=self.pk).password
+            if self.password != old_password:  # Password has been changed
+                self.set_password(self.password)
+        super().save(*args, **kwargs)
