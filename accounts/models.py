@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.validators import RegexValidator
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
-
+from rest_framework_simplejwt.tokens import RefreshToken
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email=None,phone=None, password=None):
@@ -11,7 +11,6 @@ class CustomUserManager(BaseUserManager):
             email = self.normalize_email(email)
         user = self.model(email=email, phone=phone)
         user.set_password(password)
-        user.role = 'customer'
         user.save(using=self._db)
         return user
 
@@ -20,7 +19,6 @@ class CustomUserManager(BaseUserManager):
         user.is_admin = True
         user.is_staff = True
         user.is_superuser = True
-        user.role = 'staff'
         user.save(using=self._db)
         return user
     
@@ -39,7 +37,6 @@ class CustomUser(AbstractBaseUser):
                                     regex=r'^\+995\d{9}$',
                                     message="Phone number must be entered in the format: '+995XXXXXXXXX'."
                                     )])
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
@@ -59,3 +56,9 @@ class CustomUser(AbstractBaseUser):
     def has_module_perms(self, app_label):
         return True
 
+    def tokens(self):
+        refresh=RefreshToken.for_user(self)
+        return {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token)
+        }
