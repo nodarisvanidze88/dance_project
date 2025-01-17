@@ -1,7 +1,6 @@
 from django.shortcuts import render
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
-from .serializers import CategorySerializer
 from .models import Category
 
 class CategoryView(GenericAPIView):
