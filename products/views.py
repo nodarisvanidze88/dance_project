@@ -1,5 +1,6 @@
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
+
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Q
 from drf_yasg import openapi
@@ -204,3 +205,7 @@ class CategoryView(GenericAPIView):
         if not group_data['ka']:
             return Response({"detail": "Not found."}, status=404)
         return Response(group_data)
+    
+class Hello(GenericAPIView):
+    def get(self, request):
+        return Response({"message": "Hello, world!"})
