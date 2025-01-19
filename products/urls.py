@@ -1,7 +1,7 @@
 from django.urls import path
 
 
-from .views import CategoryView, BaseCategoryView, AuthorView, SubCategoryView, Hello
+from .views import CategoryView, BaseCategoryView, AuthorView, SubCategoryView
 
 
 urlpatterns = [
@@ -9,5 +9,5 @@ urlpatterns = [
     path('category', BaseCategoryView.as_view(), name='basecategory'),
     path('subcategory', SubCategoryView.as_view(), name='subcategory'),
     path('author', AuthorView.as_view(), name='author'),
-    path('test',Hello.as_view(),name='test')
+
 ]
