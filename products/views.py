@@ -206,6 +206,3 @@ class CategoryView(GenericAPIView):
             return Response({"detail": "Not found."}, status=404)
         return Response(group_data)
     
-class Hello(GenericAPIView):
-    def get(self, request):
-        return Response({"message": "Hello, world!"})
