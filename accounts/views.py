@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView, CreateAPIView
 from rest_framework import status
@@ -8,8 +7,8 @@ from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg import openapi
 from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer
-from rest_framework.permissions import AllowAny, IsAuthenticated
-# Create your views here.
+from rest_framework.permissions import IsAuthenticated
+
 User = get_user_model()
 
 class RegisterView(CreateAPIView):
