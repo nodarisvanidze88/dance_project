@@ -20,7 +20,8 @@ jobs:
 
             - name: Deploy to Server
               run: |
-                  ssh -o StrictHostKeyChecking=no root@64.227.36.23 <<EOF
+                  ssh -o StrictHostKeyChecking=no -t root@64.227.36.23 <<EOF
+                  git config --global --add safe.directory /var/www/dance_project
                   cd /var/www/dance_project
                   git pull origin main
                   source venv/bin/activate
