@@ -31,7 +31,8 @@ class CustomUserManager(BaseUserManager):
             user = self.model(email_or_phone=phone, phone=phone)
         else:
             raise ValueError("Email or Phone is required.")
-        user.set_password(password)
+        if password:
+            user.set_password(password)
         user.save(using=self._db)
         return user
 

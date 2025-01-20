@@ -34,6 +34,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         email_or_phone=validated_data['email_or_phone']
+        password = validated_data['password']
         if "@" in email_or_phone:
             email = email_or_phone
             phone = None
@@ -43,12 +44,12 @@ class RegistrationSerializer(serializers.ModelSerializer):
         else:
             raise ValidationError("Enter a valid email or phone number.")
         try:
-            user = User.objects.create(
+            user = User.objects.create_user(
                 email_or_phone=email_or_phone,
                 email=email,
                 phone=phone 
             )
-            user.set_password(validated_data['password'])
+            user.set_password(password)
             user.save()
             return user
         except:
