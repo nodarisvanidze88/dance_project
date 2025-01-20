@@ -18,7 +18,7 @@ jobs:
               with:
                   ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-            - name: Deploy to Server
+            - name: Deploy to Server 1
               run: |
                   ssh -o StrictHostKeyChecking=no -t root@64.227.36.23 <<EOF
                   git config --global --add safe.directory /var/www/dance_project
@@ -26,8 +26,27 @@ jobs:
                   git pull origin main
                   source venv/bin/activate
                   pip install -r requirements.txt
-                  python manage.py migrate
                   python manage.py collectstatic --noinput
+                  sudo systemctl restart gunicorn
+                  EOF
+            - name: Deploy to Server 2
+              run: |
+                  ssh -o StrictHostKeyChecking=no -t root@142.93.46.253 <<EOF
+                  git config --global --add safe.directory /var/www/dance_project
+                  cd /var/www/dance_project
+                  git pull origin main
+                  source venv/bin/activate
+                  pip install -r requirements.txt
+                  python manage.py collectstatic --noinput
+                  sudo systemctl restart gunicorn
+                  EOF
+            - name: Apply Migrations on Server 1
+              if: success()
+              run: |
+                  ssh -o StrictHostKeyChecking=no -t root@64.227.36.23 <<EOF
+                  cd /var/www/dance_project
+                  source venv/bin/activate
+                  python manage.py migrate
                   python manage.py create_superuser
                   sudo systemctl restart gunicorn
                   EOF
