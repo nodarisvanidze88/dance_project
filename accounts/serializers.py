@@ -46,14 +46,14 @@ class RegistrationSerializer(serializers.ModelSerializer):
         try:
             user = User.objects.create_user(
                 email_or_phone=email_or_phone,
-                email=email,
-                phone=phone 
+
+                password=password
             )
-            user.set_password(password)
-            user.save()
-            return user
         except:
-            raise serializers.ValidationError("User already exists.")
+            raise ValidationError("User already exists.")
+
+        return user
+
 
 class LoginSerializer(serializers.Serializer):
     email_or_phone = serializers.CharField(required=True)
