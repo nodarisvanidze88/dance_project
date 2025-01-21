@@ -29,7 +29,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['64.227.36.23','127.0.0.1','159.65.56.204','143.198.241.115']
+ALLOWED_HOSTS = ['64.227.36.23','127.0.0.1','159.65.56.204','139.59.196.49']
 
 AUTH_USER_MODEL = 'accounts.CustomUser'
 # Application definition
