@@ -31,7 +31,7 @@ jobs:
                   EOF
             - name: Deploy to Server 2
               run: |
-                  ssh -o StrictHostKeyChecking=no -t root@142.93.46.253 <<EOF
+                  ssh -o StrictHostKeyChecking=no -t root@159.65.56.204 <<EOF
                   git config --global --add safe.directory /var/www/dance_project
                   cd /var/www/dance_project
                   git pull origin main
