@@ -32,8 +32,8 @@ jobs:
             - name: Deploy to Server 2
               run: |
                   ssh -o StrictHostKeyChecking=no -t root@159.65.56.204 <<EOF
-                  git config --global --add safe.directory /var/www/dance_project
-                  cd /var/www/dance_project
+                  git config --global --add safe.directory /home/dance_project
+                  cd /home/dance_project
                   git pull origin main
                   source venv/bin/activate
                   pip install -r requirements.txt
