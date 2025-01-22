@@ -68,7 +68,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         if not email_or_phone:
             raise ValidationError(get_error_message(errorMessages,"emailOrPhoneRequired"))
         if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError([get_error_message(errorMessages,"passwordsNotMatch")])
+            raise ValidationError({"password": get_error_message(errorMessages, "passwordsNotMatch")})
         return attrs
     
     def create(self, validated_data):
