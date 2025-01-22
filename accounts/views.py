@@ -9,6 +9,10 @@ from drf_yasg import openapi
 from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer
 from rest_framework.permissions import IsAuthenticated
 from .errorMessageHandler import get_error_message, errorMessages
+from .models import CustomUser
+from django.core.validators import RegexValidator, EmailValidator
+from django.core.exceptions import ValidationError
+from .validators import validate_password
 User = get_user_model()
 
 class RegisterView(CreateAPIView):
@@ -39,8 +43,9 @@ class LoginView(GenericAPIView):
         if user:
             refresh = user.tokens()
             return Response({
-                "refresh": str(refresh['refresh']),
                 "access": str(refresh['access']),
+                "refresh": str(refresh['refresh']),
+                
             })
         return Response(get_error_message(errorMessages,"invalidCredentials"), status=status.HTTP_401_UNAUTHORIZED)
 
@@ -75,3 +80,51 @@ class LogoutView(GenericAPIView):
             return Response(status=status.HTTP_205_RESET_CONTENT)
         except:
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserChangeDetailsViews(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = RegistrationSerializer
+
+    def post(self, request):
+        email_validator = EmailValidator(message=[get_error_message(errorMessages,"emailValidator")])
+        phone_validator = RegexValidator(
+                                regex=r'^\+995\d{9}$',
+                                message=get_error_message(errorMessages,"phoneValidator")
+                            )
+        user = request.user
+        email = request.data.get('email')
+        phone = request.data.get('phone')
+        password = request.data.get('password')
+        password2 = request.data.get('password2')
+        if email:
+            try:
+                email_validator(email)
+            except:
+                raise ValidationError(get_error_message(errorMessages,"emailValidator"))
+        if phone:
+            try:
+                phone_validator(phone)
+            except:
+                raise ValidationError(get_error_message(errorMessages,"phoneValidator"))
+        if password:
+            validate_password(password)
+            if password != password2:
+                raise ValidationError(get_error_message(errorMessages,"passwordsNotMatch"))
+                    
+        db_user = CustomUser.objects.get(email_or_phone=user)
+        if email and email_validator(db_user.email_or_phone):
+            db_user.email = email
+            db_user.email_or_phone = email
+        if phone and phone_validator(db_user.email_or_phone):
+            db_user.phone = phone
+            db_user.email_or_phone = phone
+        if password:
+            db_user.set_password(password)
+        db_user.save()
+        return Response(get_error_message(errorMessages,"successChanges"))
+
+    def get(self, request):
+        user = request.user
+        serializer = self.get_serializer(user)
+        return Response(serializer.data)

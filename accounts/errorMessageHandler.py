@@ -27,7 +27,7 @@ errorMessages = {
 
     "passwordRequired": ["პაროლი აუცილებელია",
                          "Password is required"],
-                         
+
     "passwordBlank": ["პაროლი არ შეიძლება იყოს ცარიელი",
                       "Password cannot be blank"],
 
@@ -36,6 +36,8 @@ errorMessages = {
 
     "passwordsNotMatch": ["პაროლები არ ემთხვევა",
                           "Passwords do not match"],
+    "successChanges": ["წარმატებით შეცვლილია",
+                        "Successfully changed"],
 }
 
 def get_error_message(messages,key):
