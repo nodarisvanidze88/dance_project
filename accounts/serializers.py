@@ -146,6 +146,9 @@ class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
 class UserChangeDetailsSerializer(serializers.ModelSerializer):
+    email_or_phone = serializers.CharField(
+        read_only=True,
+    )
     email = serializers.EmailField(
         required=False,
         allow_blank=True,
@@ -165,7 +168,7 @@ class UserChangeDetailsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User  # Replace with your custom user model
-        fields = ['email', 'phone', 'password', 'password2']
+        fields = ['email_or_phone','email', 'phone', 'password', 'password2']
 
     def validate(self, attrs):
         # Ensure passwords match if provided

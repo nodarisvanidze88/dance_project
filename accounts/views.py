@@ -3,6 +3,7 @@ from rest_framework.generics import GenericAPIView, CreateAPIView
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import check_password
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg import openapi
@@ -37,17 +38,25 @@ class LoginView(GenericAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         email_or_phone = serializer.validated_data.get('email_or_phone')
         password = serializer.validated_data['password']
-        user = authenticate(email_or_phone=email_or_phone, password=password)
-        if user:
+
+        # Try to find the user by email_or_phone, email, or phone
+        user = CustomUser.objects.filter(
+            Q(email_or_phone=email_or_phone) | Q(email=email_or_phone) | Q(phone=email_or_phone)
+        ).first()
+
+        if user and check_password(password, user.password):
+            # If the password matches, generate tokens
             refresh = user.tokens()
             return Response({
                 "access": str(refresh['access']),
                 "refresh": str(refresh['refresh']),
-                
-            })
-        return Response(get_error_message(errorMessages,"invalidCredentials"), status=status.HTTP_401_UNAUTHORIZED)
+            }, status=status.HTTP_200_OK)
+        
+        # If no user is found or password doesn't match, return invalid credentials error
+        return Response(get_error_message(errorMessages, "invalidCredentials"), status=status.HTTP_401_UNAUTHORIZED)
 
 class LogoutView(GenericAPIView):
     permission_classes = [IsAuthenticated]
