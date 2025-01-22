@@ -32,14 +32,11 @@ class RegistrationSerializer(serializers.ModelSerializer):
         try:
             return super().to_internal_value(data)
         except ValidationError as exc:
-            # Ensure multilingual format is preserved
             detail = exc.detail
             for field, messages in detail.items():
-                # Check if messages are dictionaries and prevent DRF from flattening
                 if isinstance(messages, list) and isinstance(messages[0], dict):
-                    detail[field] = messages  # Preserve original format
+                    detail[field] = messages  
                 else:
-                    # Handle default DRF behavior
                     detail[field] = [get_error_message(errorMessages, "emailOrPhoneValidator")]
             raise ValidationError(detail)
         
@@ -48,7 +45,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
         Override to provide multilingual required field error messages.
         """
         if not data:
-            # Return multilingual errors for required fields
             errors = {
                 "email_or_phone": [
                     get_error_message(errorMessages, "emailOrPhoneRequired")
@@ -93,8 +89,6 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
         return user
 
-
-
 class LoginSerializer(serializers.Serializer):
     email_or_phone = serializers.CharField(
         required=True,
@@ -109,7 +103,6 @@ class LoginSerializer(serializers.Serializer):
         Override to provide multilingual required field error messages.
         """
         if not data:
-            # Return multilingual errors for required fields
             errors = {
                 "email_or_phone": [
                     get_error_message(errorMessages, "emailOrPhoneRequired")
@@ -120,7 +113,6 @@ class LoginSerializer(serializers.Serializer):
             }
             raise ValidationError(errors)
 
-        # Check individual fields for blank values
         for field, value in data.items():
             if not value.strip():
                 if field == "email_or_phone":
