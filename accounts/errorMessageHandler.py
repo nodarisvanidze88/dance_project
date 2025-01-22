@@ -36,8 +36,12 @@ errorMessages = {
 
     "passwordsNotMatch": ["პაროლები არ ემთხვევა",
                           "Passwords do not match"],
+
     "successChanges": ["წარმატებით შეცვლილია",
                         "Successfully changed"],
+                        
+    "usedUserDetails": ["მონაცემი უკვე გამოყენებულია",
+                        "Already in use"],
 }
 
 def get_error_message(messages,key):

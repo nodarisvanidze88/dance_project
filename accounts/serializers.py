@@ -4,6 +4,7 @@ from rest_framework.exceptions import ValidationError
 from .validators import validate_password
 from .models import validate_email_or_phone
 from .errorMessageHandler import errorMessages, get_error_message
+from .validators import custom_email_validator, custom_phone_validator
 User = get_user_model()
 
 class RegistrationSerializer(serializers.ModelSerializer):
@@ -143,3 +144,35 @@ class LoginSerializer(serializers.Serializer):
     
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
+
+class UserChangeDetailsSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(
+        required=False,
+        allow_blank=True,
+        validators=[
+            custom_email_validator
+        ]
+    )
+    phone = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        validators=[
+            custom_phone_validator
+        ]
+    )
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True, required=False, allow_blank=True,)
+
+    class Meta:
+        model = User  # Replace with your custom user model
+        fields = ['email', 'phone', 'password', 'password2']
+
+    def validate(self, attrs):
+        # Ensure passwords match if provided
+        password = attrs.get('password')
+        password2 = attrs.pop('password2', None)
+
+        if password and password != password2:
+            raise serializers.ValidationError({"password": get_error_message(errorMessages, "passwordsNotMatch")})
+
+        return attrs

@@ -4,20 +4,15 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
 from .errorMessageHandler import get_error_message, errorMessages
-
+from .validators import custom_email_validator, custom_phone_validator
 
 
 def validate_email_or_phone(value):
-    email_validator = EmailValidator(message=[get_error_message(errorMessages,"emailValidator")])
-    phone_validator = RegexValidator(
-        regex=r'^\+995\d{9}$',
-        message=get_error_message(errorMessages,"phoneValidator")
-    )
     try:
-        email_validator(value)
+        custom_email_validator(value)
     except ValidationError:
         try:
-            phone_validator(value)
+            custom_phone_validator(value)
         except ValidationError:
             raise ValidationError(message=get_error_message(errorMessages,'emailOrPhoneValidator'))
 
@@ -86,12 +81,17 @@ class CustomUser(AbstractBaseUser):
             'refresh': str(refresh),
             'access': str(refresh.access_token)
         }
+
     def save(self, *args, **kwargs):
-        if not self.pk or not CustomUser.objects.filter(pk=self.pk).exists():
-            # New user, password hashing is handled by Django's default creation
-            super().save(*args, **kwargs)
-        else:
+        if self.pk:
             old_password = CustomUser.objects.get(pk=self.pk).password
-            if self.password != old_password:  # Password has been changed
-                self.set_password(self.password)
+            # Compare old password hash to new password hash
+            if self.password != old_password:
+                # But also check if self._password is set.
+                # If _password is None, it means you didn't call set_password(raw_pw).
+                # Without carefully using _password, you can easily re-hash a hash.
+                if self._password:
+                    # self._password is the raw password
+                    self.set_password(self._password)
+                # else do nothing
         super().save(*args, **kwargs)

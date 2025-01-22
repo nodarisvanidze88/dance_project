@@ -6,13 +6,15 @@ from django.contrib.auth import authenticate
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg import openapi
-from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer
+from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer, UserChangeDetailsSerializer
 from rest_framework.permissions import IsAuthenticated
 from .errorMessageHandler import get_error_message, errorMessages
 from .models import CustomUser
 from django.core.validators import RegexValidator, EmailValidator
 from django.core.exceptions import ValidationError
-from .validators import validate_password
+from rest_framework import serializers
+from .validators import validate_password, custom_phone_validator, custom_email_validator
+from django.db.models import Q
 User = get_user_model()
 
 class RegisterView(CreateAPIView):
@@ -38,8 +40,6 @@ class LoginView(GenericAPIView):
         email_or_phone = serializer.validated_data.get('email_or_phone')
         password = serializer.validated_data['password']
         user = authenticate(email_or_phone=email_or_phone, password=password)
-
-
         if user:
             refresh = user.tokens()
             return Response({
@@ -82,45 +82,48 @@ class LogoutView(GenericAPIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
+
+
 class UserChangeDetailsViews(GenericAPIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = RegistrationSerializer
+    serializer_class = UserChangeDetailsSerializer
 
     def post(self, request):
-        email_validator = EmailValidator(message=[get_error_message(errorMessages,"emailValidator")])
-        phone_validator = RegexValidator(
-                                regex=r'^\+995\d{9}$',
-                                message=get_error_message(errorMessages,"phoneValidator")
-                            )
         user = request.user
-        email = request.data.get('email')
-        phone = request.data.get('phone')
-        password = request.data.get('password')
-        password2 = request.data.get('password2')
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)  # Validates using the serializer
+
+        # Extract validated data
+        email = serializer.validated_data.get('email')
+        phone = serializer.validated_data.get('phone')
+        password = serializer.validated_data.get('password')
+
+        # Fetch the user from the database
+        db_user = CustomUser.objects.get(id=user.id)
+
+        # Update email
         if email:
-            try:
-                email_validator(email)
-            except:
-                raise ValidationError(get_error_message(errorMessages,"emailValidator"))
-        if phone:
-            try:
-                phone_validator(phone)
-            except:
-                raise ValidationError(get_error_message(errorMessages,"phoneValidator"))
-        if password:
-            validate_password(password)
-            if password != password2:
-                raise ValidationError(get_error_message(errorMessages,"passwordsNotMatch"))
-                    
-        db_user = CustomUser.objects.get(email_or_phone=user)
-        if email and email_validator(db_user.email_or_phone):
+            email_searched_user = CustomUser.objects.filter(Q(email_or_phone=email) | Q(email=email)).exclude(id=db_user.id).first()
+            if email_searched_user:
+                return Response(get_error_message(errorMessages,"usedUserDetails"), status=status.HTTP_400_BAD_REQUEST)
             db_user.email = email
-            db_user.email_or_phone = email
-        if phone and phone_validator(db_user.email_or_phone):
+            if "@" in db_user.email_or_phone:
+                db_user.email_or_phone = email
+
+        # Update phone
+        if phone:
+            phone_searched_user = CustomUser.objects.filter(Q(email_or_phone=phone) | Q(phone=phone)).exclude(id=db_user.id).first()
+            if phone_searched_user:
+                return Response(get_error_message(errorMessages,"usedUserDetails"), status=status.HTTP_400_BAD_REQUEST)
             db_user.phone = phone
-            db_user.email_or_phone = phone
+            if db_user.email_or_phone.startswith("+995"):
+                db_user.email_or_phone = phone
+
+        # Update password
         if password:
             db_user.set_password(password)
+            db_user.save() 
+
         db_user.save()
         return Response(get_error_message(errorMessages,"successChanges"))
 
@@ -128,3 +131,6 @@ class UserChangeDetailsViews(GenericAPIView):
         user = request.user
         serializer = self.get_serializer(user)
         return Response(serializer.data)
+    
+
+   
