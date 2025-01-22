@@ -25,6 +25,24 @@ class RegistrationSerializer(serializers.ModelSerializer):
         model = User
         fields = ['email_or_phone', 'password','password2']
 
+    def to_internal_value(self, data):
+        """
+        Override to ensure multilingual error formatting.
+        """
+        try:
+            return super().to_internal_value(data)
+        except ValidationError as exc:
+            # Ensure multilingual format is preserved
+            detail = exc.detail
+            for field, messages in detail.items():
+                # Check if messages are dictionaries and prevent DRF from flattening
+                if isinstance(messages, list) and isinstance(messages[0], dict):
+                    detail[field] = messages  # Preserve original format
+                else:
+                    # Handle default DRF behavior
+                    detail[field] = [get_error_message(errorMessages, "emailOrPhoneValidator")]
+            raise ValidationError(detail)
+        
     def run_validation(self, data):
         """
         Override to provide multilingual required field error messages.
@@ -50,7 +68,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         if not email_or_phone:
             raise ValidationError(get_error_message(errorMessages,"emailOrPhoneRequired"))
         if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password": "Password fields didn't match."})
+            raise serializers.ValidationError([get_error_message(errorMessages,"passwordsNotMatch")])
         return attrs
     
     def create(self, validated_data):
@@ -63,7 +81,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
             phone = email_or_phone
             email = None
         else:
-            raise ValidationError("Enter a valid email or phone number.")
+            raise ValidationError(get_error_message(errorMessages, "emailOrPhoneValidator"))
         try:
             user = User.objects.create_user(
                 email_or_phone=email_or_phone,
@@ -71,7 +89,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 password=password
             )
         except:
-            raise ValidationError("User already exists.")
+            raise ValidationError(get_error_message(errorMessages,"userExcist"))
 
         return user
 

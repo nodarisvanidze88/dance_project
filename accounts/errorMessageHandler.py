@@ -22,8 +22,15 @@ errorMessages = {
 
     "invalidCredentials": ["არასწორი მონაცემები",
                            "Invalid credentials"],
+
     "passwordRequired": ["პაროლი აუცილებელია",
                          "Password is required"],
+
+    "userExcist": ["მომხმარებელი უკვე არსებობს",
+                   "User already exists"],
+                   
+    "passwordsNotMatch": ["პაროლები არ ემთხვევა",
+                          "Passwords do not match"],
 }
 
 def get_error_message(messages,key):
