@@ -19,7 +19,7 @@ def validate_email_or_phone(value):
         try:
             phone_validator(value)
         except ValidationError:
-            raise ValidationError
+            raise ValidationError(message=get_error_message(errorMessages,'emailOrPhoneValidator'))
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email_or_phone=None, password=None):
