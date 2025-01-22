@@ -10,6 +10,8 @@ errorMessages = {
 
     "emailOrPhoneRequired": ["ელ.ფოსტა ან ტელეფონი აუცილებელია",
                              "Email or Phone is required."],
+    "emailOrPhoneBlank" : ["ელ.ფოსტა ან ტელეფონი არ შეიძლება იყოს ცარიელი",
+                           "Email or phone cannot be blank."],
 
     "emailOrPhoneExists": ["ელ.ფოსტა ან ტელეფონი უკვე არსებობს",
                            "Email or Phone already exists"],
@@ -25,10 +27,13 @@ errorMessages = {
 
     "passwordRequired": ["პაროლი აუცილებელია",
                          "Password is required"],
+                         
+    "passwordBlank": ["პაროლი არ შეიძლება იყოს ცარიელი",
+                      "Password cannot be blank"],
 
     "userExcist": ["მომხმარებელი უკვე არსებობს",
                    "User already exists"],
-                   
+
     "passwordsNotMatch": ["პაროლები არ ემთხვევა",
                           "Passwords do not match"],
 }

@@ -96,16 +96,58 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    email_or_phone = serializers.CharField(required=True)
+    email_or_phone = serializers.CharField(
+        required=True,
+    )
     password = serializers.CharField(
         write_only=True,
         required=True,
     )
+
+    def run_validation(self, data):
+        """
+        Override to provide multilingual required field error messages.
+        """
+        if not data:
+            # Return multilingual errors for required fields
+            errors = {
+                "email_or_phone": [
+                    get_error_message(errorMessages, "emailOrPhoneRequired")
+                ],
+                "password": [
+                    get_error_message(errorMessages, "passwordRequired")
+                ],
+            }
+            raise ValidationError(errors)
+
+        # Check individual fields for blank values
+        for field, value in data.items():
+            if not value.strip():
+                if field == "email_or_phone":
+                    raise ValidationError({
+                        "email_or_phone": [
+                            get_error_message(errorMessages, "emailOrPhoneBlank")
+                        ]
+                    })
+                if field == "password":
+                    raise ValidationError({
+                        "password": [
+                            get_error_message(errorMessages, "passwordBlank")
+                        ]
+                    })
+
+        return super().run_validation(data)
+
     def validate(self, attrs):
         email_or_phone = attrs.get('email_or_phone')
         if not email_or_phone:
-            raise serializers.ValidationError("Either email or phone must be provided.")
+            raise serializers.ValidationError({
+                "email_or_phone": [
+                    get_error_message(errorMessages, "emailOrPhoneRequired")
+                ]
+            })
         return attrs
+
     
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
