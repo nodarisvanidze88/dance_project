@@ -8,7 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg import openapi
 from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer
 from rest_framework.permissions import IsAuthenticated
-
+from .errorMessageHandler import get_error_message, errorMessages
 User = get_user_model()
 
 class RegisterView(CreateAPIView):
@@ -42,7 +42,7 @@ class LoginView(GenericAPIView):
                 "refresh": str(refresh['refresh']),
                 "access": str(refresh['access']),
             })
-        return Response({"detail": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+        return Response(get_error_message(errorMessages,"invalidCredentials"), status=status.HTTP_401_UNAUTHORIZED)
 
 class LogoutView(GenericAPIView):
     permission_classes = [IsAuthenticated]

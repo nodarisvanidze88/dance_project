@@ -3,13 +3,15 @@ from django.core.validators import RegexValidator, EmailValidator
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
+from .errorMessageHandler import get_error_message, errorMessages
+
 
 
 def validate_email_or_phone(value):
-    email_validator = EmailValidator(message="Enter a valid email address.")
+    email_validator = EmailValidator(message=[get_error_message(errorMessages,"emailValidator")])
     phone_validator = RegexValidator(
         regex=r'^\+995\d{9}$',
-        message="Phone number must be entered in the format: '+995XXXXXXXXX'."
+        message=get_error_message(errorMessages,"phoneValidator")
     )
     try:
         email_validator(value)
@@ -17,12 +19,12 @@ def validate_email_or_phone(value):
         try:
             phone_validator(value)
         except ValidationError:
-            raise ValidationError("Enter a valid email or phone number.")
+            raise ValidationError(message=get_error_message(errorMessages,'emailOrPhoneValidator'))
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email_or_phone=None, password=None):
         if not email_or_phone:
-            raise ValueError("The Email or Phone field must be set")
+            raise ValueError(get_error_message(errorMessages,'emailOrPhoneValidator'))
         if "@" in email_or_phone:
             email = self.normalize_email(email_or_phone)
             user = self.model(email_or_phone=email, email=email)
@@ -30,7 +32,7 @@ class CustomUserManager(BaseUserManager):
             phone = email_or_phone
             user = self.model(email_or_phone=phone, phone=phone)
         else:
-            raise ValueError("Email or Phone is required.")
+            raise ValueError(get_error_message(errorMessages,'emailOrPhoneValidator'))
         if password:
             user.set_password(password)
         user.save(using=self._db)
@@ -57,7 +59,7 @@ class CustomUser(AbstractBaseUser):
                              validators=[
                                  RegexValidator(
                                     regex=r'^\+995\d{9}$',
-                                    message="Phone number must be entered in the format: '+995XXXXXXXXX'."
+                                    message=get_error_message(errorMessages,'phoneValidator')
                                     )])
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)

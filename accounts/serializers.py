@@ -1,10 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from django.contrib.auth import authenticate
-from django.core.validators import RegexValidator, EmailValidator
-from rest_framework.exceptions import AuthenticationFailed, ValidationError
-from django.contrib.auth.password_validation import validate_password
+from rest_framework.exceptions import ValidationError
+from .validators import validate_password
 from .models import validate_email_or_phone
+from .errorMessageHandler import errorMessages, get_error_message
 User = get_user_model()
 
 class RegistrationSerializer(serializers.ModelSerializer):
@@ -12,9 +11,12 @@ class RegistrationSerializer(serializers.ModelSerializer):
         write_only=True,
         required=True,
         validators=[validate_password],
+        
     )
-    password2 = serializers.CharField(write_only=True, 
-                                      required=True)
+    password2 = serializers.CharField(
+        write_only=True, 
+        required=True,
+    )
     email_or_phone = serializers.CharField(
         required=True,
         validators=[validate_email_or_phone]
@@ -23,11 +25,30 @@ class RegistrationSerializer(serializers.ModelSerializer):
         model = User
         fields = ['email_or_phone', 'password','password2']
 
+    def run_validation(self, data):
+        """
+        Override to provide multilingual required field error messages.
+        """
+        if not data:
+            # Return multilingual errors for required fields
+            errors = {
+                "email_or_phone": [
+                    get_error_message(errorMessages, "emailOrPhoneRequired")
+                ],
+                "password": [
+                    get_error_message(errorMessages, "passwordRequired")
+                ],
+                "password2": [
+                    get_error_message(errorMessages, "passwordRequired")
+                ],
+            }
+            raise ValidationError(errors)
+        return super().run_validation(data)
     def validate(self, attrs):
         email_or_phone = attrs.get('email_or_phone')
         
         if not email_or_phone:
-            raise ValidationError("Email or Phone is required.")
+            raise ValidationError(get_error_message(errorMessages,"emailOrPhoneRequired"))
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
         return attrs
@@ -53,6 +74,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
             raise ValidationError("User already exists.")
 
         return user
+
 
 
 class LoginSerializer(serializers.Serializer):
