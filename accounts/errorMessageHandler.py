@@ -42,6 +42,15 @@ errorMessages = {
                         
     "usedUserDetails": ["მონაცემი უკვე გამოყენებულია",
                         "Already in use"],
+
+    "emailVerified": ["ელ.ფოსტა დადასტუშდა",
+                        "Email verified"],
+
+    "invalidEmailCode": ["არასწორი ელ.ფოსტის კოდი",
+                        "Invalid email code"],
+
+    "emailVerificationCodeRequired": ["ელ.ფოსტის კოდი აუცილებელია",
+                        "Email verification code is required"],
 }
 
 def get_error_message(messages,key):

@@ -32,8 +32,14 @@ class CustomUserManager(BaseUserManager):
             raise ValueError(get_error_message(errorMessages,'emailOrPhoneValidator'))
         if password:
             user.set_password(password)
-        user.verification_code = str(random.randint(100000, 999999))
         user.save(using=self._db)
+        generated_code = str(random.randint(100000, 999999))
+        instance, created = UserVerificationCodes.objects.get_or_create(user=user)
+        if created:
+            instance.code = generated_code
+            instance.save()
+
+        
 
         if user.email:
             user.send_verification_email()
@@ -64,9 +70,6 @@ class CustomUser(AbstractBaseUser):
                                     message=get_error_message(errorMessages,'phoneValidator')
                                     )])
     date_joined = models.DateTimeField(auto_now_add=True)
-    email_verified = models.BooleanField(default=False)
-    phone_verified = models.BooleanField(default=False)
-    verification_code = models.CharField(max_length=6, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
@@ -102,7 +105,8 @@ class CustomUser(AbstractBaseUser):
             return  # no email, skip
         
         subject = "Verify your email"
-        message = f"Your verification code is: {self.verification_code}"
+        user_code = UserVerificationCodes.objects.get(user=self)
+        message = f"Your verification code is: {user_code.code}"
         
         send_mail(
             subject,
@@ -125,3 +129,34 @@ class CustomUser(AbstractBaseUser):
                     self.set_password(self._password)
                 # else do nothing
         super().save(*args, **kwargs)
+
+
+class UserVerificationCodes(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    code = models.CharField(max_length=6)
+    email_verified = models.BooleanField(default=False)
+    phone_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.user.email_or_phone
+    
+    def send_verification_email(self, new_user=None):
+        """
+        Uses Django's send_mail to email the verification code to the user.
+        Make sure your EMAIL_* settings are configured in settings.py.
+        """
+        if not self.user.email:
+            return  # no email, skip 
+        subject = "Verify your email"
+        user_code = self.code
+        message = f"Your verification code is: {user_code}"
+        target_email = new_user if new_user else self.user.email
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,  # or "no-reply@yourdomain.com"
+            [target_email],
+            fail_silently=False
+        )

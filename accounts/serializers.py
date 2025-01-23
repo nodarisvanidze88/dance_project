@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
+from django.db import IntegrityError
 from .validators import validate_password
-from .models import validate_email_or_phone
+from .models import validate_email_or_phone, UserVerificationCodes
 from .errorMessageHandler import errorMessages, get_error_message
 from .validators import custom_email_validator, custom_phone_validator
 User = get_user_model()
@@ -24,7 +25,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
     )
     class Meta:
         model = User
-        fields = ['email_or_phone', 'email_verified', 'phone_verified','password','password2']
+        fields = ['email_or_phone','password','password2']
 
     def to_internal_value(self, data):
         """
@@ -79,14 +80,18 @@ class RegistrationSerializer(serializers.ModelSerializer):
             email = None
         else:
             raise ValidationError(get_error_message(errorMessages, "emailOrPhoneValidator"))
+
         try:
             user = User.objects.create_user(
                 email_or_phone=email_or_phone,
-
                 password=password
             )
-        except:
-            raise ValidationError(get_error_message(errorMessages,"userExcist"))
+        except IntegrityError:
+            # This is the actual "duplicate key" type error
+            raise ValidationError(get_error_message(errorMessages, "userExcist"))
+        except Exception as e:
+            # Re-raise or handle other error, so you can see what’s really happening
+            raise e
 
         return user
 
@@ -178,4 +183,22 @@ class UserChangeDetailsSerializer(serializers.ModelSerializer):
         if password and password != password2:
             raise serializers.ValidationError({"password": get_error_message(errorMessages, "passwordsNotMatch")})
 
+        return attrs
+    
+class UserEmailVerificationSerializer(serializers.ModelSerializer):
+    email_code = serializers.CharField(
+        required=True,
+    )
+    class Meta:
+        model = UserVerificationCodes
+        fields = ['code']
+        
+    def validate(self, attrs):
+        email_code = attrs.get('code')
+        if not email_code:
+            raise serializers.ValidationError({
+                "code": [
+                    get_error_message(errorMessages, "emailVerificationCodeRequired")
+                ]
+            })
         return attrs
