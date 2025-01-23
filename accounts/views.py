@@ -26,11 +26,24 @@ class RegisterView(CreateAPIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         refresh = user.tokens()
-        return Response({
+        result = {
             "email_or_phone": serializer.data['email_or_phone'],
             "refresh": str(refresh['refresh']),
             "access": str(refresh['access'])
-        }, status=status.HTTP_201_CREATED)
+        }
+        try:
+            custom_email_validator(serializer.data['email_or_phone'])
+        except:
+            pass
+        else:
+            result["email_verified"] = False
+        try:
+            custom_phone_validator(serializer.data['email_or_phone'])
+        except:
+            pass
+        else:
+            result["phone_verified"] = False
+        return Response(result, status=status.HTTP_201_CREATED)
     
 class LoginView(GenericAPIView):
     serializer_class = LoginSerializer

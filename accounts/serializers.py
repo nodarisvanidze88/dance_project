@@ -24,7 +24,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
     )
     class Meta:
         model = User
-        fields = ['email_or_phone', 'password','password2']
+        fields = ['email_or_phone', 'email_verified', 'phone_verified','password','password2']
 
     def to_internal_value(self, data):
         """

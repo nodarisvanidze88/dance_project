@@ -3,9 +3,11 @@ from django.core.validators import RegexValidator, EmailValidator
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.core.exceptions import ValidationError
+from django.core.mail import send_mail
+from django.conf import settings
 from .errorMessageHandler import get_error_message, errorMessages
 from .validators import custom_email_validator, custom_phone_validator
-
+import random
 
 def validate_email_or_phone(value):
     try:
@@ -30,7 +32,12 @@ class CustomUserManager(BaseUserManager):
             raise ValueError(get_error_message(errorMessages,'emailOrPhoneValidator'))
         if password:
             user.set_password(password)
+        user.verification_code = str(random.randint(100000, 999999))
         user.save(using=self._db)
+
+        if user.email:
+            user.send_verification_email()
+
         return user
 
     def create_superuser(self, email_or_phone=None, password=None):
@@ -56,6 +63,10 @@ class CustomUser(AbstractBaseUser):
                                     regex=r'^\+995\d{9}$',
                                     message=get_error_message(errorMessages,'phoneValidator')
                                     )])
+    date_joined = models.DateTimeField(auto_now_add=True)
+    email_verified = models.BooleanField(default=False)
+    phone_verified = models.BooleanField(default=False)
+    verification_code = models.CharField(max_length=6, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
@@ -65,7 +76,6 @@ class CustomUser(AbstractBaseUser):
     
     USERNAME_FIELD = 'email_or_phone'
     REQUIRED_FIELDS = []
-    
     def __str__(self):
         return self.email_or_phone
     
@@ -82,6 +92,26 @@ class CustomUser(AbstractBaseUser):
             'access': str(refresh.access_token)
         }
 
+
+    def send_verification_email(self):
+        """
+        Uses Django's send_mail to email the verification code to the user.
+        Make sure your EMAIL_* settings are configured in settings.py.
+        """
+        if not self.email:
+            return  # no email, skip
+        
+        subject = "Verify your email"
+        message = f"Your verification code is: {self.verification_code}"
+        
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,  # or "no-reply@yourdomain.com"
+            [self.email],
+            fail_silently=False
+        )
+        
     def save(self, *args, **kwargs):
         if self.pk:
             old_password = CustomUser.objects.get(pk=self.pk).password
