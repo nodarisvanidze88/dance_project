@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import SubCategory, Category, CourseAuthor
+from .models import SubCategory, Category, CourseAuthor, VideoContent
 
 class AuthorSerializer(serializers.ModelSerializer):
     class Meta:
@@ -18,3 +18,7 @@ class CategorySerializer(serializers.ModelSerializer):
         model = SubCategory
         fields = '__all__'
 
+class VideoContentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VideoContent
+        fields = '__all__'

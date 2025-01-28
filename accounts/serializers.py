@@ -186,7 +186,7 @@ class UserChangeDetailsSerializer(serializers.ModelSerializer):
         return attrs
     
 class UserEmailVerificationSerializer(serializers.ModelSerializer):
-    email_code = serializers.CharField(
+    code = serializers.CharField(
         required=True,
     )
     class Meta:
@@ -202,3 +202,8 @@ class UserEmailVerificationSerializer(serializers.ModelSerializer):
                 ]
             })
         return attrs
+    
+class UserDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['email_or_phone', 'email', 'phone']

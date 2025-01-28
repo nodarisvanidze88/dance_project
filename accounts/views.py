@@ -6,7 +6,7 @@ from django.contrib.auth.hashers import check_password
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg import openapi
-from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer, UserChangeDetailsSerializer, UserEmailVerificationSerializer
+from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer, UserChangeDetailsSerializer, UserEmailVerificationSerializer, UserDetailsSerializer
 from rest_framework.permissions import IsAuthenticated
 from .errorMessageHandler import get_error_message, errorMessages
 from .models import CustomUser, UserVerificationCodes
@@ -169,6 +169,7 @@ class UserEmailVerificationView(GenericAPIView):
     
 class UserDetails(GenericAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = UserDetailsSerializer
     def get(self, request):
         user = request.user
         user_phone_email_validation = UserVerificationCodes.objects.filter(user_id=user.id).first()

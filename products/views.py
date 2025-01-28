@@ -4,8 +4,8 @@ from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Q
 from drf_yasg import openapi
-from .models import SubCategory, Category, CourseAuthor
-from .serializers import CategorySerializer, BaseCategorySerializer, AuthorSerializer, SubCategorySerializer
+from .models import SubCategory, Category, CourseAuthor, VideoContent
+from .serializers import CategorySerializer, BaseCategorySerializer, AuthorSerializer, SubCategorySerializer, VideoContentSerializer
 
 class AuthorView(GenericAPIView):
     serializer_class = AuthorSerializer
@@ -204,5 +204,84 @@ class CategoryView(GenericAPIView):
             group_data['en'].append(data_en)
         if not group_data['ka']:
             return Response({"detail": "Not found."}, status=404)
+        return Response(group_data)
+    
+class VideoContentView(GenericAPIView):
+    serializer_class = VideoContentSerializer
+    @swagger_auto_schema(
+            manual_parameters=[
+                openapi.Parameter(
+                    'subcategory_id', 
+                    openapi.IN_QUERY, 
+                    description="Subcategory ID", 
+                    type=openapi.TYPE_INTEGER
+                    )])
+    def get(self, request):
+        get_subcategory_id = request.query_params.get('subcategory_id')
+        video_data = VideoContent.objects.filter(sub_category_id=get_subcategory_id)
+        group_data = {'ka':[], 'en':[]}
+        for video in video_data:
+            data_ka = {
+                'video_id': video.id,
+                'video_title': video.title_ka,
+                'video_description': video.description_ka,
+                'video_url': video.video_url,
+                'video_demo': video.demo,
+                'video_price': video.price,
+                'video_discount_price': video.discount_price,
+                'video_rank': video.rank,
+                'video_is_active': video.is_active,
+                'video_created_at': video.created_at,
+                'video_updated_at': video.updated_at,
+                'subcategory_data':{
+                    'subcategory_id': video.sub_category.id,
+                    'subcategory': video.sub_category.name_ka,
+                    'category_data':{
+                        'category_id': video.sub_category.category.id,
+                        'category': video.sub_category.category.name_ka,
+                        'author_data':{
+                            'author_id': video.sub_category.category.author.id,
+                            'author': video.sub_category.category.author.name_ka,
+                            'author_description': video.sub_category.category.author.description_ka,
+                            'author_school_name': video.sub_category.category.author.school_name_ka,
+                            'author_is_new': video.sub_category.category.author.is_new,
+                            'author_promoted': video.sub_category.category.author.promoted,
+                            'author_with_discount': video.sub_category.category.author.with_discount
+                        }
+                    }
+                }
+            }
+            data_en = {
+                'video_id': video.id,
+                'video_title': video.title_en,
+                'video_description': video.description_en,
+                'video_url': video.video_url,
+                'video_demo': video.demo,
+                'video_price': video.price,
+                'video_discount_price': video.discount_price,
+                'video_rank': video.rank,
+                'video_is_active': video.is_active,
+                'video_created_at': video.created_at,
+                'video_updated_at': video.updated_at,
+                'subcategory_data':{
+                    'subcategory_id': video.sub_category.id,
+                    'subcategory': video.sub_category.name_en,
+                    'category_data':{
+                        'category_id': video.sub_category.category.id,
+                        'category': video.sub_category.category.name_en,
+                        'author_data':{
+                            'author_id': video.sub_category.category.author.id,
+                            'author': video.sub_category.category.author.name_en,   
+                            'author_description': video.sub_category.category.author.description_en,
+                            'author_school_name': video.sub_category.category.author.school_name_en,
+                            'author_is_new': video.sub_category.category.author.is_new,
+                            'author_promoted': video.sub_category.category.author.promoted,
+                            'author_with_discount': video.sub_category.category.author.with_discount
+                        }
+                    }
+                }
+            }
+            group_data['ka'].append(data_ka)
+            group_data['en'].append(data_en)
         return Response(group_data)
     
