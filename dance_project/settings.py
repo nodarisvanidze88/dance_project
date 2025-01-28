@@ -210,3 +210,5 @@ SWAGGER_SETTINGS = {
         }
     }
 }
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")

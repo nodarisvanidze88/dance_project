@@ -207,3 +207,13 @@ class UserDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['email_or_phone', 'email', 'phone']
+
+
+class GoogleAuthSerializer(serializers.Serializer):
+    id_token = serializers.CharField(required=True)
+
+    def validate(self, attrs):
+        id_token = attrs.get('id_token')
+        if not id_token:
+            raise serializers.ValidationError({"id_token": "Missing Google ID token."})
+        return attrs

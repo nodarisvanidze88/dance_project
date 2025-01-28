@@ -6,12 +6,15 @@ from django.contrib.auth.hashers import check_password
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg import openapi
-from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer, UserChangeDetailsSerializer, UserEmailVerificationSerializer, UserDetailsSerializer
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer, UserChangeDetailsSerializer, UserEmailVerificationSerializer, UserDetailsSerializer, GoogleAuthSerializer
 from rest_framework.permissions import IsAuthenticated
 from .errorMessageHandler import get_error_message, errorMessages
 from .models import CustomUser, UserVerificationCodes
 from .validators import custom_phone_validator, custom_email_validator
 from django.db.models import Q
+from django.conf import settings
 import random
 User = get_user_model()
 
@@ -186,4 +189,66 @@ class UserDetails(GenericAPIView):
             if user_phone_email_validation.phone_verified:
                 result["phone_verified"] = user_phone_email_validation.phone_verified
         return Response(result)
-   
+
+class GoogleAuthView(GenericAPIView):
+    """
+    POST endpoint to exchange a Google ID token for our own JWT tokens.
+    """
+    serializer_class = GoogleAuthSerializer
+
+    def post(self, request, *args, **kwargs):
+        # 1. Validate incoming data (which should contain the 'id_token')
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        id_token_value = serializer.validated_data.get('id_token')
+        
+        try: 
+            # 2. Verify the token using Google's library
+            #    You must pass the same 'audience' as your front-end's OAuth 2.0 client ID
+            google_info = id_token.verify_oauth2_token(
+                id_token_value,
+                requests.Request(),
+                settings.GOOGLE_CLIENT_ID,
+                clock_skew_in_seconds=200 
+            )
+        except ValueError as e:
+            # Token is invalid
+            return Response({"detail": "Invalid Google token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 3. google_info will contain user details from Google if token is valid
+        #    typical fields: 'email', 'email_verified', 'sub' (unique user id from Google), 'name', 'picture', etc.
+
+        google_email = google_info.get('email')
+
+        # You could also check google_info.get('email_verified') if needed.
+        
+        if not google_email:
+            return Response({"detail": "No email found in Google token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 4. Create or retrieve the user from the DB
+        user, created = CustomUser.objects.get_or_create(email_or_phone=google_email, email=google_email)
+        
+        # If user was newly created, optionally create the verification code entry
+        if created:
+            user.set_password("medik888")
+            user.save()
+            verification_code = str(random.randint(100000, 999999))
+            # Create the verification code object
+            UserVerificationCodes.objects.create(
+                user=user,
+                code=verification_code,
+                email_verified=True  # Because Google verified the email
+            )
+            # Possibly you treat Google signups as "verified" by default, or require them to verify again in your system.
+        
+        # 5. Generate JWT tokens via SimpleJWT
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+
+        # 6. Return tokens
+        return Response({
+            "refresh": str(refresh),
+            "access": access_token,
+            "email_or_phone": user.email_or_phone
+        }, status=status.HTTP_200_OK)
