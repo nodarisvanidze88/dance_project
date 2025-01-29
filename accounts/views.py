@@ -15,9 +15,11 @@ from .models import CustomUser, UserVerificationCodes
 from .validators import custom_phone_validator, custom_email_validator
 from django.db.models import Q
 from django.conf import settings
+from dotenv import load_dotenv
 import random
+import os
 User = get_user_model()
-
+load_dotenv()
 class RegisterView(CreateAPIView):
     serializer_class = RegistrationSerializer
 
@@ -231,7 +233,7 @@ class GoogleAuthView(GenericAPIView):
         
         # If user was newly created, optionally create the verification code entry
         if created:
-            user.set_password("medik888")
+            user.set_password(os.getenv('SUPERUSER_PASSWORD'))  # Set a random password
             user.save()
             verification_code = str(random.randint(100000, 999999))
             # Create the verification code object
