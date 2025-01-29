@@ -31,6 +31,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
         """
         Override to ensure multilingual error formatting.
         """
+        email_or_phone_content = data.get('email_or_phone')
         try:
             return super().to_internal_value(data)
         except ValidationError as exc:
@@ -39,7 +40,12 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 if isinstance(messages, list) and isinstance(messages[0], dict):
                     detail[field] = messages  
                 else:
-                    detail[field] = [get_error_message(errorMessages, "emailOrPhoneValidator")]
+                    if field in ['password','password2']:
+                        detail[field] = [get_error_message(errorMessages,"passwordRequired")]
+                    elif field == 'email_or_phone' and not email_or_phone_content:
+                        detail[field] = [get_error_message(errorMessages, "emailOrPhoneRequired")]
+                    elif field == 'email_or_phone' and email_or_phone_content:
+                        detail[field] = [get_error_message(errorMessages, "emailOrPhoneValidator")]
             raise ValidationError(detail)
         
     def run_validation(self, data):
@@ -62,11 +68,16 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return super().run_validation(data)
     def validate(self, attrs):
         email_or_phone = attrs.get('email_or_phone')
-        
+        password = attrs.get('password')
+        password2 = attrs.get('password2')
+        if not password:
+            raise ValidationError({"password": get_error_message(errorMessages, "passwordRequired")})
+        if not password2:
+            raise ValidationError({"password2": get_error_message(errorMessages, "passwordRequired")})
         if not email_or_phone:
             raise ValidationError(get_error_message(errorMessages,"emailOrPhoneRequired"))
         if attrs['password'] != attrs['password2']:
-            raise ValidationError({"password": get_error_message(errorMessages, "passwordsNotMatch")})
+            raise serializers.ValidationError({"password": [get_error_message(errorMessages, "passwordsNotMatch")]})
         return attrs
     
     def create(self, validated_data):
