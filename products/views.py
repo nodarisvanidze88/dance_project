@@ -1,11 +1,101 @@
 from rest_framework.generics import GenericAPIView
+from rest_framework.views import APIView
 from rest_framework.response import Response
-
+from .utils import str_to_bool
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Q
 from drf_yasg import openapi
 from .models import SubCategory, Category, CourseAuthor, VideoContent
 from .serializers import CategorySerializer, BaseCategorySerializer, AuthorSerializer, SubCategorySerializer, VideoContentSerializer
+
+class DanceCategoAuthorView(APIView):
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter('promoted', openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('is_new', openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('with_discount', openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN),
+            openapi.Parameter('search', openapi.IN_QUERY, type=openapi.TYPE_STRING),
+            openapi.Parameter('page', openapi.IN_QUERY, type=openapi.TYPE_INTEGER),
+            openapi.Parameter('page_size', openapi.IN_QUERY, type=openapi.TYPE_INTEGER),
+        ]
+    )
+    def get(self, request):
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
+        offset = (page - 1) * page_size
+
+        filters = Q(is_active=True)
+        if (val := request.query_params.get('promoted')) is not None:
+            filters &= Q(promoted=str_to_bool(val))
+        if (val := request.query_params.get('is_new')) is not None:
+            filters &= Q(is_new=str_to_bool(val))
+        if (val := request.query_params.get('with_discount')) is not None:
+            filters &= Q(with_discount=str_to_bool(val))
+        if (val := request.query_params.get('search')) is not None:
+            filters &= (
+                Q(name_ka__icontains=val) |
+                Q(name_en__icontains=val) |
+                Q(description_ka__icontains=val) |
+                Q(description_en__icontains=val) |
+                Q(school_name_ka__icontains=val) |
+                Q(school_name_en__icontains=val)
+            )
+
+        queryset = CourseAuthor.objects.filter(filters).prefetch_related('category')
+
+        paginated_authors = queryset.order_by('id')[offset:offset + page_size]
+
+        ka_data, en_data = [], []
+
+        for author in paginated_authors:
+            for category in author.category.all():
+                image_url = request.build_absolute_uri(category.image.url) if category.image else None
+
+                ka_data.append({
+                    "category_id": category.id,
+                    "category": category.name_ka,
+                    "category_image": image_url,
+                    "author_data": {
+                        "author_id": author.id,
+                        "author": author.name_ka,
+                        "author_description": author.description_ka,
+                        "author_school_name": author.school_name_ka,
+                        "author_is_new": author.is_new,
+                        "author_promoted": author.promoted,
+                        "author_with_discount": author.with_discount,
+                    }
+                })
+                en_data.append({
+                    "category_id": category.id,
+                    "category": category.name_en,
+                    "category_image": image_url,
+                    "author_data": {
+                        "author_id": author.id,
+                        "author": author.name_en,
+                        "author_description": author.description_en,
+                        "author_school_name": author.school_name_en,
+                        "author_is_new": author.is_new,
+                        "author_promoted": author.promoted,
+                        "author_with_discount": author.with_discount,
+                    }
+                })
+
+        if not ka_data:
+            return Response({"detail": "Not found."}, status=404)
+        total_count = len(ka_data)
+        return Response({
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total_items": total_count,
+                "total_pages": (total_count + page_size - 1) // page_size
+            },
+            "data":{
+                "ka": ka_data,
+                "en": en_data,
+            }  
+        }, status=200)
+
 
 class AuthorView(GenericAPIView):
     serializer_class = AuthorSerializer
@@ -35,23 +125,6 @@ class AuthorView(GenericAPIView):
             group_data['en'].append(data_en)
         return Response(group_data)
 
-class BaseCategoryView(GenericAPIView):
-    serializer_class = BaseCategorySerializer
-    def get(self, request):
-        category_data = Category.objects.all()
-        group_data = {'ka':[], 'en':[]}
-        for category in category_data:
-            data_ka = {
-                'category_id': category.id,
-                'category': category.name_ka,
-            }
-            data_en = {
-                'category_id': category.id,
-                'category': category.name_en,
-            }
-            group_data['ka'].append(data_ka)
-            group_data['en'].append(data_en)
-        return Response(group_data)
 
 class SubCategoryView(GenericAPIView):
     serializer_class = SubCategorySerializer

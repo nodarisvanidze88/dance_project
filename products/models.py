@@ -1,6 +1,13 @@
 from django.db import models
 
-
+class Category(models.Model):
+    name_ka = models.CharField(max_length=255, unique=True)
+    name_en = models.CharField(max_length=255, unique=True)
+    image = models.ImageField(upload_to='category_images/', blank=True, null=True)
+    
+    def __str__(self):
+        return f"{self.name_ka}"
+    
 class CourseAuthor(models.Model):
     name_ka = models.CharField(max_length=255)
     name_en = models.CharField(max_length=255)
@@ -8,32 +15,25 @@ class CourseAuthor(models.Model):
     description_en = models.TextField(blank=True, null=True)
     school_name_ka = models.CharField(max_length=255, blank=True, null=True)
     school_name_en = models.CharField(max_length=255, blank=True, null=True)
+    category = models.ManyToManyField(Category)
     promoted = models.BooleanField(default=False)
     is_new = models.BooleanField(default=False)
     with_discount = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True,blank=True, null=True)
     
     def __str__(self):
         return self.name_ka
     
-class Category(models.Model):
-    name_ka = models.CharField(max_length=255)
-    name_en = models.CharField(max_length=255)
-    author = models.ForeignKey(CourseAuthor, on_delete=models.CASCADE)
-    
-    def __str__(self):
-        return f"{self.name_ka} - {self.author.name_ka}"
-    class Meta:
-        unique_together = (('name_ka', 'author'),)
-    
 class SubCategory(models.Model):
     name_ka = models.CharField(max_length=255)
     name_en = models.CharField(max_length=255)
-    category = models.ForeignKey(Category, on_delete=models.CASCADE)
+    author = models.ForeignKey(CourseAuthor, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.name_ka} - {self.category.name_ka} - {self.category.author.name_ka}"
-    class Meta:
-        unique_together = (('name_ka', 'category'),)
+        return f"{self.name_ka}"
+
+
 class VideoContent(models.Model):
     title_ka = models.CharField(max_length=255)
     title_en = models.CharField(max_length=255)
