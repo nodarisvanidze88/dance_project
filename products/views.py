@@ -19,6 +19,7 @@ class DanceCategoAuthorView(APIView):
             openapi.Parameter('page_size', openapi.IN_QUERY, type=openapi.TYPE_INTEGER),
         ]
     )
+    
     def get(self, request):
         page = int(request.query_params.get('page', 1))
         page_size = int(request.query_params.get('page_size', 10))
