@@ -14,7 +14,8 @@ from pathlib import Path
 from datetime import timedelta
 import os
 from dotenv import load_dotenv
-
+import logging
+from pythonjsonlogger import jsonlogger
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -83,25 +84,25 @@ REST_FRAMEWORK = {
 }
 WSGI_APPLICATION = 'dance_project.wsgi.application'
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv("name"),  # Database name
-        'USER': os.getenv("username"),    # Username
-        'PASSWORD': os.getenv("password"),
-        'HOST': os.getenv("host"),  # Database host
-        'PORT': os.getenv("port"),  # Port
-        'OPTIONS': {
-            'sslmode': os.getenv("sslmode"),  # Enforce SSL for secure connection
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.getenv("name"),  # Database name
+#         'USER': os.getenv("username"),    # Username
+#         'PASSWORD': os.getenv("password"),
+#         'HOST': os.getenv("host"),  # Database host
+#         'PORT': os.getenv("port"),  # Port
+#         'OPTIONS': {
+#             'sslmode': os.getenv("sslmode"),  # Enforce SSL for secure connection
+#         },
+#     }
+# }
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
@@ -217,3 +218,56 @@ MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 
 STATICFILES_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+LOGGLY_TOKEN = os.getenv("LOGGLY_TOKEN")
+LOGGLY_TAG = os.getenv("LOGGLY_TAG", "django-app")
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    'formatters': {
+        'json': {
+            '()': 'pythonjsonlogger.jsonlogger.JsonFormatter',
+            'fmt': '%(asctime)s %(levelname)s %(name)s %(message)s',
+        },
+        'simple': {
+            'format': '[%(asctime)s] %(levelname)s %(name)s: %(message)s'
+        },
+    },
+
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',  # აქ ხედავ ყველაფერს ტერმინალში
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'loggly': {
+            'level': 'INFO',  # მხოლოდ WARNING და ზემოთ წავა Loggly-ზე
+            'class': 'logging.handlers.HTTPHandler',
+            'formatter': 'json',
+            'host': 'logs-01.loggly.com',
+            'url': f'/inputs/{LOGGLY_TOKEN}/tag/{LOGGLY_TAG}/',
+            'method': 'POST',
+        },
+    },
+
+    'root': {
+        'handlers': ['console', 'loggly'],
+        'level': 'DEBUG',
+    },
+
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'loggly'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        # შეგიძლია დაამატო custom აპების ლოგერები აქ
+        'products': {
+            'handlers': ['console', 'loggly'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    }
+}
