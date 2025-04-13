@@ -1,13 +1,19 @@
 from django.db import models
+from storages.backends.s3boto3 import S3Boto3Storage
+
+
+
 
 class Category(models.Model):
     name_ka = models.CharField(max_length=255, unique=True)
     name_en = models.CharField(max_length=255, unique=True)
-    image = models.ImageField(upload_to='category_images/', blank=True, null=True)
+    image = models.ImageField(upload_to='category_images/', blank=True, null=True, storage=S3Boto3Storage())
     
     def __str__(self):
         return f"{self.name_ka}"
     
+
+
 class CourseAuthor(models.Model):
     name_ka = models.CharField(max_length=255)
     name_en = models.CharField(max_length=255)
