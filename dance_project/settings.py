@@ -84,25 +84,25 @@ REST_FRAMEWORK = {
 }
 WSGI_APPLICATION = 'dance_project.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.getenv("name"),  # Database name
-#         'USER': os.getenv("username"),    # Username
-#         'PASSWORD': os.getenv("password"),
-#         'HOST': os.getenv("host"),  # Database host
-#         'PORT': os.getenv("port"),  # Port
-#         'OPTIONS': {
-#             'sslmode': os.getenv("sslmode"),  # Enforce SSL for secure connection
-#         },
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv("name"),  # Database name
+        'USER': os.getenv("username"),    # Username
+        'PASSWORD': os.getenv("password"),
+        'HOST': os.getenv("host"),  # Database host
+        'PORT': os.getenv("port"),  # Port
+        'OPTIONS': {
+            'sslmode': os.getenv("sslmode"),  # Enforce SSL for secure connection
+        },
+    }
+}
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
@@ -243,7 +243,7 @@ LOGGING = {
             'formatter': 'simple',
         },
         'loggly': {
-            'level': 'INFO',  # მხოლოდ WARNING და ზემოთ წავა Loggly-ზე
+            'level': 'WARNING',  # მხოლოდ WARNING და ზემოთ წავა Loggly-ზე
             'class': 'logging.handlers.HTTPHandler',
             'formatter': 'json',
             'host': 'logs-01.loggly.com',
