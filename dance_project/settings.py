@@ -269,5 +269,71 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        'accounts': {
+            'handlers': ['console', 'loggly'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console', 'loggly'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console', 'loggly'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['console', 'loggly'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.server': {
+            'handlers': ['console', 'loggly'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security.DisallowedHost': {
+            'handlers': ['console', 'loggly'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security.DisallowedRedirect': {
+            'handlers': ['console', 'loggly'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security.SuspiciousOperation': {
+            'handlers': ['console', 'loggly'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security.InvalidToken': {
+            'handlers': ['console', 'loggly'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security.SuspiciousFileOperation': {
+            'handlers': ['console', 'loggly'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security.SuspiciousMultipartForm': {
+            'handlers': ['console', 'loggly'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security.SuspiciousSession': {
+            'handlers': ['console', 'loggly'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'django.security.SuspiciousFileOperation': {
+            'handlers': ['console', 'loggly'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        
     }
 }
