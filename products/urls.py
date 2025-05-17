@@ -1,13 +1,13 @@
 from django.urls import path
 
 
-from .views import CategoryView, AuthorView, SubCategoryView, VideoContentView, DanceCategoAuthorView
+from .views import CourseView, VideoContentView, DanceCategoryAuthorView
 
 
 urlpatterns = [
-    path('dance_category/', DanceCategoAuthorView.as_view(), name='dance_catego_author_view'),
-    path('subcategory', SubCategoryView.as_view(), name='subcategory'),
-    path('author', AuthorView.as_view(), name='author'),
+    path('dance_category/', DanceCategoryAuthorView.as_view(), name='dance_catego_author_view'),
+    path('course/', CourseView.as_view(), name='course'),
+    # path('author', AuthorView.as_view(), name='author'),
     path('videocontent', VideoContentView.as_view(), name='videocontent'),
 
 

@@ -5,10 +5,10 @@ from .utils import str_to_bool
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Q
 from drf_yasg import openapi
-from .models import SubCategory, Category, CourseAuthor, VideoContent
-from .serializers import CategorySerializer, BaseCategorySerializer, AuthorSerializer, SubCategorySerializer, VideoContentSerializer
+from .models import Course, CourseAuthor, VideoContent, CourseCommentVotes
+from .serializers import CourseSerializer, VideoContentSerializer
 
-class DanceCategoAuthorView(APIView):
+class DanceCategoryAuthorView(APIView):
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter('promoted', openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN),
@@ -97,64 +97,10 @@ class DanceCategoAuthorView(APIView):
             }  
         }, status=200)
 
-
-class AuthorView(GenericAPIView):
-    serializer_class = AuthorSerializer
-    def get(self, request):
-        author_data = CourseAuthor.objects.all()
-        group_data = {'ka':[], 'en':[]}
-        for author in author_data:
-            data_ka = {
-                'author_id': author.id,
-                'author': author.name_ka,
-                'author_description': author.description_ka,
-                'author_school_name': author.school_name_ka,
-                'author_is_new': author.is_new,
-                'author_promoted': author.promoted,
-                'author_with_discount': author.with_discount
-            }
-            data_en = {
-                'author_id': author.id,
-                'author': author.name_en,
-                'author_description': author.description_en,
-                'author_school_name': author.school_name_en,
-                'author_is_new': author.is_new,
-                'author_promoted': author.promoted,
-                'author_with_discount': author.with_discount
-            }
-            group_data['ka'].append(data_ka)
-            group_data['en'].append(data_en)
-        return Response(group_data)
-
-
-class SubCategoryView(GenericAPIView):
-    serializer_class = SubCategorySerializer
-    def get(self, request):
-        subcategory_data = SubCategory.objects.all()
-        group_data = {'ka':[], 'en':[]}
-        for subcategory in subcategory_data:
-            data_ka = {
-                'category_id': subcategory.id,
-                'category': subcategory.name_ka,
-            }
-            data_en = {
-                'category_id': subcategory.id,
-                'category': subcategory.name_en,
-            }
-            group_data['ka'].append(data_ka)
-            group_data['en'].append(data_en)
-        return Response(group_data)
-
-class CategoryView(GenericAPIView):
-    serializer_class = CategorySerializer
+class CourseView(GenericAPIView):
+    serializer_class = CourseSerializer
     @swagger_auto_schema(
             manual_parameters=[
-                openapi.Parameter(
-                    'author_id', 
-                    openapi.IN_QUERY, 
-                    description="Author ID", 
-                    type=openapi.TYPE_INTEGER
-                    ),
                 openapi.Parameter(
                     'category_id', 
                     openapi.IN_QUERY, 
@@ -162,122 +108,62 @@ class CategoryView(GenericAPIView):
                     type=openapi.TYPE_INTEGER
                     ),
                 openapi.Parameter(
-                    'subcategory_id', 
+                    'author_id', 
                     openapi.IN_QUERY, 
-                    description="SubCategory ID", 
+                    description="Author ID", 
                     type=openapi.TYPE_INTEGER
-                    ),
-                openapi.Parameter(
-                    'search', 
-                    openapi.IN_QUERY, 
-                    description="Search term", 
-                    type=openapi.TYPE_STRING
-                    ),
-                openapi.Parameter(
-                    'promoted', 
-                    openapi.IN_QUERY, 
-                    description="Promoted", 
-                    type=openapi.TYPE_BOOLEAN
-                    ),
-                openapi.Parameter(
-                    'is_new', 
-                    openapi.IN_QUERY, 
-                    description="Is New", 
-                    type=openapi.TYPE_BOOLEAN
-                    ),
-                openapi.Parameter(
-                    'with_discount', 
-                    openapi.IN_QUERY, 
-                    description="With Discount", 
-                    type=openapi.TYPE_BOOLEAN
-                    ),
-                     
+                    )
                 ]
             )
     def get(self, request):
         category_id = request.query_params.get('category_id')
-        subcategory_id = request.query_params.get('subcategory_id')
         author_id = request.query_params.get('author_id')
-        search = request.query_params.get('search')
-        promoted = request.query_params.get('promoted')
-        is_new = request.query_params.get('is_new')
-        with_discount = request.query_params.get('with_discount')
-        filters = {}
-        if category_id:
-            filters['category_id'] = category_id
-        if subcategory_id:
-            filters['id'] = subcategory_id
+        course_data = Course.objects.all()
         if author_id:
-            filters['category__author_id'] = author_id
-        if promoted == 'true':
-            filters['category__author__promoted'] = True
-        if is_new == 'true':
-            filters['category__author__is_new'] = True
-        if with_discount == 'true':
-            filters['category__author__with_discount'] = True
-
+            course_data = course_data.filter(author_id=author_id)
+        if category_id:
+            course_data = course_data.filter(author__category__id=category_id)
         
-        subCategories = SubCategory.objects.filter(**filters).order_by('-category__author__promoted', 
-                                                                       '-category__author__is_new',
-                                                                       '-category__author__with_discount')
-        if search:
-            search_filters = (
-                Q(name_ka__icontains=search) |
-                Q(name_en__icontains=search) |
-                Q(category__name_ka__icontains=search) |
-                Q(category__name_en__icontains=search) |
-                Q(category__author__name_ka__icontains=search) |
-                Q(category__author__name_en__icontains=search) |
-                Q(category__author__description_ka__icontains=search) |
-                Q(category__author__description_en__icontains=search) |
-                Q(category__author__school_name_ka__icontains=search) |
-                Q(category__author__school_name_en__icontains=search)
-            )
-            subCategories = SubCategory.objects.filter(search_filters).order_by('-category__author__promoted', 
-                                                                                '-category__author__is_new',
-                                                                                '-category__author__with_discount')
         group_data = {'ka':[], 'en':[]}
-        for subcategory in subCategories:
+        for course in course_data:
             data_ka = {
-                'author_id': subcategory.category.author.id,
-                'author': subcategory.category.author.name_ka,
-                'author_description': subcategory.category.author.description_ka,
-                'author_school_name': subcategory.category.author.school_name_ka,
-                'author_is_new': subcategory.category.author.is_new,
-                'author_promoted': subcategory.category.author.promoted,
-                'author_with_discount': subcategory.category.author.with_discount,
-                'category_data':{
-                    'category_id': subcategory.category.id,
-                    'category': subcategory.category.name_ka,
-                    'subcategory_data':{
-                        'subcategory_id': subcategory.id,
-                        'subcategory': subcategory.name_ka
-                    }
-                }
-                
+                'course_id': course.id,
+                'course': course.name_ka,
+                'course_image': request.build_absolute_uri(course.image.url) if course.image else None,
+                'course_description': course.description_ka,
+                'author_data':{
+                    'author_id': course.author.id,
+                    'author': course.author.name_ka,
+                    'author_description': course.author.description_ka,
+                    'author_school_name': course.author.school_name_ka,
+                    'author_is_new': course.author.is_new,
+                    'author_promoted': course.author.promoted,
+                    'author_with_discount': course.author.with_discount
+                },
+                "rank": course.avg_vote,
+                "video_count": course.get_total_videos,
+                "total_price": course.get_total_price,
             }
             data_en = {
-                'author_id': subcategory.category.author.id,
-                'author': subcategory.category.author.name_en,
-                'author_description': subcategory.category.author.description_en,
-                'author_school_name': subcategory.category.author.school_name_en,
-                'author_is_new': subcategory.category.author.is_new,
-                'author_promoted': subcategory.category.author.promoted,
-                'author_with_discount': subcategory.category.author.with_discount,
-                'category_data':{
-                    'category_id': subcategory.category.id,
-                    'category': subcategory.category.name_en,
-                    'subcategory_data':{
-                        'subcategory_id': subcategory.id,
-                        'subcategory': subcategory.name_en
-                    }
-                }
-                
+                'course_id': course.id,
+                'course': course.name_en,
+                'course_image': request.build_absolute_uri(course.image.url) if course.image else None,
+                'course_description': course.description_en,
+                'author_data':{
+                    'author_id': course.author.id,
+                    'author': course.author.name_en,
+                    'author_description': course.author.description_en,
+                    'author_school_name': course.author.school_name_en,
+                    'author_is_new': course.author.is_new,
+                    'author_promoted': course.author.promoted,
+                    'author_with_discount': course.author.with_discount
+                },
+                "rank": course.avg_vote,
+                "video_count": course.get_total_videos,
+                "total_price": course.get_total_price,
             }
             group_data['ka'].append(data_ka)
             group_data['en'].append(data_en)
-        if not group_data['ka']:
-            return Response({"detail": "Not found."}, status=404)
         return Response(group_data)
     
 class VideoContentView(GenericAPIView):
@@ -285,14 +171,26 @@ class VideoContentView(GenericAPIView):
     @swagger_auto_schema(
             manual_parameters=[
                 openapi.Parameter(
-                    'subcategory_id', 
+                    'course_id', 
                     openapi.IN_QUERY, 
-                    description="Subcategory ID", 
+                    description="course ID", 
                     type=openapi.TYPE_INTEGER
                     )])
     def get(self, request):
-        get_subcategory_id = request.query_params.get('subcategory_id')
-        video_data = VideoContent.objects.filter(sub_category_id=get_subcategory_id)
+        get_course_id = request.query_params.get('course_id')
+        video_data = VideoContent.objects.filter(course_id=get_course_id)
+        top_level_comments = CourseCommentVotes.objects.filter(course_id=get_course_id, parent__isnull=True)
+        def build_comment_tree(comment):
+            return {
+                'comment_id': comment.id,
+                'comment': comment.comment,
+                'user': comment.user.username,
+                'created_at': comment.created_at,
+                'updated_at': comment.updated_at,
+                'is_active': comment.is_active,
+                'vote': comment.vote,
+                'children': [build_comment_tree(child) for child in comment.replies.all()]
+            }
         group_data = {'ka':[], 'en':[]}
         for video in video_data:
             data_ka = {
@@ -307,23 +205,12 @@ class VideoContentView(GenericAPIView):
                 'video_is_active': video.is_active,
                 'video_created_at': video.created_at,
                 'video_updated_at': video.updated_at,
-                'subcategory_data':{
-                    'subcategory_id': video.sub_category.id,
-                    'subcategory': video.sub_category.name_ka,
-                    'category_data':{
-                        'category_id': video.sub_category.category.id,
-                        'category': video.sub_category.category.name_ka,
-                        'author_data':{
-                            'author_id': video.sub_category.category.author.id,
-                            'author': video.sub_category.category.author.name_ka,
-                            'author_description': video.sub_category.category.author.description_ka,
-                            'author_school_name': video.sub_category.category.author.school_name_ka,
-                            'author_is_new': video.sub_category.category.author.is_new,
-                            'author_promoted': video.sub_category.category.author.promoted,
-                            'author_with_discount': video.sub_category.category.author.with_discount
-                        }
-                    }
-                }
+                'course_data':{
+                    'course_id': video.course.id,
+                    'course': video.course.name_ka,
+                },
+                'comment_data': [build_comment_tree(comment) for comment in top_level_comments]
+
             }
             data_en = {
                 'video_id': video.id,
@@ -337,23 +224,11 @@ class VideoContentView(GenericAPIView):
                 'video_is_active': video.is_active,
                 'video_created_at': video.created_at,
                 'video_updated_at': video.updated_at,
-                'subcategory_data':{
-                    'subcategory_id': video.sub_category.id,
-                    'subcategory': video.sub_category.name_en,
-                    'category_data':{
-                        'category_id': video.sub_category.category.id,
-                        'category': video.sub_category.category.name_en,
-                        'author_data':{
-                            'author_id': video.sub_category.category.author.id,
-                            'author': video.sub_category.category.author.name_en,   
-                            'author_description': video.sub_category.category.author.description_en,
-                            'author_school_name': video.sub_category.category.author.school_name_en,
-                            'author_is_new': video.sub_category.category.author.is_new,
-                            'author_promoted': video.sub_category.category.author.promoted,
-                            'author_with_discount': video.sub_category.category.author.with_discount
-                        }
-                    }
-                }
+                'course_data':{
+                    'course_id': video.course.id,
+                    'course': video.course.name_en,
+                },
+                'comment_data': [build_comment_tree(comment) for comment in top_level_comments]
             }
             group_data['ka'].append(data_ka)
             group_data['en'].append(data_en)

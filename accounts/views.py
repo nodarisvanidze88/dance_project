@@ -127,7 +127,6 @@ class UserChangeDetailsViews(GenericAPIView):
         # Fetch the user from the database
         db_user = CustomUser.objects.get(id=user.id)
         user_code = UserVerificationCodes.objects.get(user_id=db_user.id)
-        print(user_code.code)
 
         # Update email
         if email:

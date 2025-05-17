@@ -61,14 +61,15 @@ class CustomUser(AbstractBaseUser):
         validators=[validate_email_or_phone]
     )
     email = models.EmailField(max_length=255, blank=True, null=True)
+    username = models.CharField(max_length=255, blank=True, null=True)
     phone = models.CharField(max_length=13,  
                              blank=True, 
                              null=True,
                              validators=[
                                  RegexValidator(
-                                    regex=r'^\+995\d{9}$',
-                                    message=get_error_message(errorMessages,'phoneValidator')
-                                    )])
+                                     regex=r'^\+995\d{9}$',
+                                     message=get_error_message(errorMessages, 'phoneValidator')
+                                 )])
     date_joined = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
