@@ -1,3 +1,163 @@
-from django.shortcuts import render
+import json, decimal
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from .serializers import VideoContentSerializer
 
-# Create your views here.
+from django.http import HttpResponse, HttpResponseBadRequest
+from django.views.decorators.csrf import csrf_exempt
+
+from products.models import VideoContent
+from .models import PaymentOrder
+from .bog.api import create_order
+from .serializers import PaymentOrderSerializer
+
+# --------------------------------------------------------------------------
+# 1.  POST /payments/checkout/   { "video_ids": [1,2,3] }
+# --------------------------------------------------------------------------
+checkout_request_example = openapi.Schema(
+    type=openapi.TYPE_OBJECT,
+    required=["video_ids"],
+    properties={
+        "video_ids": openapi.Schema(
+            type=openapi.TYPE_ARRAY,
+            items=openapi.Items(type=openapi.TYPE_INTEGER),
+            description="IDs of VideoContent the user is purchasing",
+            example=[1, 2, 3],
+        )
+    },
+)
+@swagger_auto_schema(
+    method='post',
+    operation_summary="Create BoG order and get redirect URL",
+    request_body=checkout_request_example,
+    responses={
+        201: openapi.Response(
+            description="BoG order created",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "order_id": openapi.Schema(type=openapi.TYPE_STRING),
+                    "redirect_url": openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_URI),
+                },
+            ),
+        ),
+        400: "Bad Request",
+    },
+)
+@api_view(["POST"])
+def checkout(request):
+    video_ids = request.data.get("video_ids", [])
+    if not video_ids:
+        return Response({"error": "video_ids required"}, status=400)
+
+    # fetch and validate videos
+    videos = list(VideoContent.objects.filter(id__in=video_ids, is_active=True))
+    if len(videos) != len(video_ids):
+        return Response({"error": "some video_ids invalid"}, status=400)
+
+    # calculate amount (discount if set)  ->  tetri (int)
+    amount_lari = sum(
+        (v.discount_price or v.price) for v in videos
+    )
+    amount_tetri = int(decimal.Decimal(amount_lari) * 100)
+
+    basket = [
+        {
+            "product_id": str(v.id),
+            "title": v.title_en,
+            "quantity": 1,
+            "unit_price": int(decimal.Decimal(v.discount_price or v.price) * 100)
+        }
+        for v in videos
+    ]
+
+    order_id, redirect_url = create_order(amount_tetri, basket)
+
+    # store in DB
+    po = PaymentOrder.objects.create(
+        user=request.user,
+        order_id=order_id,
+        amount=amount_tetri,
+        status="created",
+    )
+    po.videos.set(videos)
+
+    return Response({"order_id": order_id, "redirect_url": redirect_url}, status=201)
+
+
+# --------------------------------------------------------------------------
+# 2.  GET /payments/status/<order_id>/      (the app polls until paid)
+# --------------------------------------------------------------------------
+@api_view(["GET"])
+@swagger_auto_schema(
+    operation_summary="Check current BoG order status",
+    manual_parameters=[
+        openapi.Parameter("order_id", openapi.IN_PATH, description="Order ID", type=openapi.TYPE_STRING),
+    ],
+    responses={
+        200: openapi.Response(
+            description="Payment status",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "order_id": openapi.Schema(type=openapi.TYPE_STRING),
+                    "status": openapi.Schema(type=openapi.TYPE_STRING, example="paid"),
+                },
+            ),
+        ),
+        404: "Not found",
+    },
+)
+def payment_status(request, order_id):
+    po = PaymentOrder.objects.filter(order_id=order_id, user=request.user).first()
+    if not po:
+        return Response({"error": "not found"}, status=404)
+    return Response({"order_id": po.order_id, "status": po.status})
+
+
+# --------------------------------------------------------------------------
+# 3.  GET /payments/my-videos/              (show everything the user owns)
+# --------------------------------------------------------------------------
+@api_view(["GET"])
+@swagger_auto_schema(
+    operation_summary="Get list of all paid VideoContent for this user",
+    responses={200: VideoContentSerializer(many=True)},
+)
+def my_videos(request):
+    paid_orders = PaymentOrder.objects.filter(user=request.user, status="paid")
+    videos = VideoContent.objects.filter(payment_orders__in=paid_orders).distinct()
+    from .serializers import VideoContentSerializer
+    return Response(VideoContentSerializer(videos, many=True).data)
+
+
+# --------------------------------------------------------------------------
+# 4.  Bank of Georgia  →  POST /payments/bog/callback/
+# --------------------------------------------------------------------------
+@csrf_exempt
+def bog_callback(request):
+    try:
+        payload = json.loads(request.body)
+        order_id   = payload["body"]["order_id"]
+        status_key = payload["body"]["order_status"]["key"]   # paid / failed …
+    except Exception:
+        return HttpResponseBadRequest()
+
+    PaymentOrder.objects.filter(order_id=order_id).update(status=status_key)
+    return HttpResponse("OK", status=200)
+
+
+# --------------------------------------------------------------------------
+# 5.  Front-channel redirect URLs that BoG requires
+#     They just return plain text – no templates at all.
+# --------------------------------------------------------------------------
+@csrf_exempt
+def success(request):
+    return HttpResponse("Payment success – you can close this tab.", status=200)
+
+@csrf_exempt
+def fail(request):
+    return HttpResponse("Payment failed or cancelled.", status=200)

@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'drf_yasg',
+    'payments.apps.PaymentsConfig',
     'products.apps.ProductsConfig',
     'storages',
     'accounts',
@@ -84,25 +85,25 @@ REST_FRAMEWORK = {
 }
 WSGI_APPLICATION = 'dance_project.wsgi.application'
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv("name"),  # Database name
-        'USER': os.getenv("username"),    # Username
-        'PASSWORD': os.getenv("password"),
-        'HOST': os.getenv("host"),  # Database host
-        'PORT': os.getenv("port"),  # Port
-        'OPTIONS': {
-            'sslmode': os.getenv("sslmode"),  # Enforce SSL for secure connection
-        },
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': os.getenv("name"),  # Database name
+#         'USER': os.getenv("username"),    # Username
+#         'PASSWORD': os.getenv("password"),
+#         'HOST': os.getenv("host"),  # Database host
+#         'PORT': os.getenv("port"),  # Port
+#         'OPTIONS': {
+#             'sslmode': os.getenv("sslmode"),  # Enforce SSL for secure connection
+#         },
+#     }
+# }
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
@@ -186,6 +187,12 @@ SWAGGER_SETTINGS = {
             'in': 'header'
         }
     }
+}
+
+BOG = {
+    "CLIENT_ID": os.getenv("BOG_CLIENT_ID"),
+    "CLIENT_SECRET": os.getenv("BOG_CLIENT_SECRET"),
+    "CALLBACK_URL": os.getenv("BOG_CALLBACK_URL"),
 }
 STORAGES = {
     "default": {
