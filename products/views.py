@@ -82,7 +82,7 @@ class DanceCategoryAuthorView(APIView):
                 })
 
         if not ka_data:
-            return Response({"detail": "Not found."}, status=404)
+            return Response([], status=200)
         total_count = len(ka_data)
         return Response({
             "pagination": {
