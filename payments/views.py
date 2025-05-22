@@ -1,4 +1,4 @@
-import json, decimal
+import json
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from products.models import VideoContent
 from .models import PaymentOrder
 from .bog.api import create_order
-from .serializers import PaymentOrderSerializer
+from .serializers import PaymentOrderSerializer, CheckoutRequestSerializer
 
 # --------------------------------------------------------------------------
 # 1.  POST /payments/checkout/   { "video_ids": [1,2,3] }
@@ -50,12 +50,17 @@ checkout_request_example = openapi.Schema(
 )
 @api_view(["POST"])
 def checkout(request):
-    video_ids = request.data.get("video_ids", [])
-    if not video_ids:
-        return Response({"error": "video_ids required"}, status=400)
+    ser = CheckoutRequestSerializer(data=request.data)
+    ser.is_valid(raise_exception=True)
+    video_ids = ser.validated_data["video_ids"]
 
     # fetch and validate videos
-    videos = list(VideoContent.objects.filter(id__in=video_ids, is_active=True))
+    videos = list(
+        VideoContent.objects.filter(id__in=video_ids, is_active=True)
+    )
+    print(f"my_videossssssss {videos}")
+    if not videos:
+        return Response({"error": "no active videos found"}, status=404)
     if len(videos) != len(video_ids):
         return Response({"error": "some video_ids invalid"}, status=400)
 
@@ -63,25 +68,23 @@ def checkout(request):
     amount_lari = sum(
         (v.discount_price or v.price) for v in videos
     )
-    amount_tetri = int(decimal.Decimal(amount_lari) * 100)
 
     basket = [
         {
             "product_id": str(v.id),
-            "title": v.title_en,
             "quantity": 1,
-            "unit_price": int(decimal.Decimal(v.discount_price or v.price) * 100)
+            "unit_price": int(v.discount_price or v.price)
         }
         for v in videos
     ]
 
-    order_id, redirect_url = create_order(amount_tetri, basket)
+    order_id, redirect_url = create_order(amount_lari, basket)
 
     # store in DB
     po = PaymentOrder.objects.create(
         user=request.user,
         order_id=order_id,
-        amount=amount_tetri,
+        amount=amount_lari,
         status="created",
     )
     po.videos.set(videos)

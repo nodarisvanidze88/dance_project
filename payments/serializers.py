@@ -14,3 +14,8 @@ class PaymentOrderSerializer(serializers.ModelSerializer):
         model  = PaymentOrder
         fields = ["order_id", "status", "amount", "created_at", "videos"]
 
+class CheckoutRequestSerializer(serializers.Serializer):
+    video_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False
+    )

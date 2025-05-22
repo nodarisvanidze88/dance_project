@@ -190,9 +190,9 @@ SWAGGER_SETTINGS = {
 }
 
 BOG = {
-    "CLIENT_ID": os.getenv("BOG_CLIENT_ID"),
-    "CLIENT_SECRET": os.getenv("BOG_CLIENT_SECRET"),
-    "CALLBACK_URL": os.getenv("BOG_CALLBACK_URL"),
+    "CLIENT_ID": os.getenv("CLIENT_ID"),
+    "CLIENT_SECRET": os.getenv("CLIENT_SECRET"),
+    "CALLBACK_URL": os.getenv("CALLBACK_URL"),
 }
 STORAGES = {
     "default": {

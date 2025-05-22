@@ -7,8 +7,10 @@ from django.db.models import Q
 from drf_yasg import openapi
 from .models import Course, CourseAuthor, VideoContent, CourseCommentVotes
 from .serializers import CourseSerializer, VideoContentSerializer
+from rest_framework.permissions import IsAuthenticated
 
 class DanceCategoryAuthorView(APIView):
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter('promoted', openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN),
@@ -99,6 +101,7 @@ class DanceCategoryAuthorView(APIView):
 
 class CourseView(GenericAPIView):
     serializer_class = CourseSerializer
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
             manual_parameters=[
                 openapi.Parameter(
@@ -168,6 +171,7 @@ class CourseView(GenericAPIView):
     
 class VideoContentView(GenericAPIView):
     serializer_class = VideoContentSerializer
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
             manual_parameters=[
                 openapi.Parameter(

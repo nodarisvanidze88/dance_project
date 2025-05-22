@@ -7,18 +7,22 @@ AUTH_URL = "https://oauth2.bog.ge/auth/realms/bog/protocol/openid-connect/token"
 
 @functools.lru_cache()
 def get_token() -> str:
-    authorization_basic = settings.BOG["CLIENT_ID"] + ":" + settings.BOG["CLIENT_SECRET"]
-    # Check if the token is still valid
-    base_64 = base64.b64encode(authorization_basic.encode()).decode()
+    basic = f'{settings.BOG["CLIENT_ID"]}:{settings.BOG["CLIENT_SECRET"]}'
+    basic_b64 = base64.b64encode(basic.encode()).decode()
+    print(f"Bog token: {basic_b64}")
     resp = requests.post(
         AUTH_URL,
-        auth=f"Basic {base_64}",
-        data={"grant_type": "client_credentials"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        data={
+            "grant_type": "client_credentials",
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded",
+                 "Authorization": f"Basic {basic_b64}"}
     )
     resp.raise_for_status()
-    data = resp.json()
-    # expire 60 s early
-    get_token.cache_clear()
-    get_token.cache_token_expiry = time.time() + data["expires_in"] - 60
-    return data["access_token"]
+
+    token = resp.json()
+
+    # Expire the cache 60 s before the real expiry so we always refresh in time
+    # get_token.cache_clear()
+    # get_token.cache_expiry_ts = time.time() + resp.json()["expires_in"] - 60
+    return token

@@ -5,7 +5,7 @@ from .client import get_token
 ORDER_URL   = "https://api.bog.ge/payments/v1/ecommerce/orders"
 DETAILS_URL = "https://api.bog.ge/payments/v1/receipt/{order_id}"
 
-def create_order(amount_tetri: int, basket: list[dict]) -> tuple[str, str]:
+def create_order(amount_lari: int, basket: list[dict]) -> tuple[str, str]:
     """
     Returns (order_id, redirect_url) that your app passes to WebView.
     """
@@ -16,7 +16,7 @@ def create_order(amount_tetri: int, basket: list[dict]) -> tuple[str, str]:
 
         "purchase_units": {
             "currency": "GEL",
-            "total_amount": amount_tetri,      # integer!
+            "total_amount": amount_lari,      # integer!
             "basket": basket                   # optional but nice to have
         },
         "redirect_urls": {
@@ -24,12 +24,15 @@ def create_order(amount_tetri: int, basket: list[dict]) -> tuple[str, str]:
             "fail":    settings.BOG["CALLBACK_URL"].replace("callback/", "fail/"),
         },
     }
+    print(f"this is my payload: {payload}")
+    token = get_token()
+    print(f"this is my token: {token}")
 
     r = requests.post(
         ORDER_URL,
         json=payload,
         headers={
-            "Authorization": f"Bearer {get_token()}",
+            "Authorization": f"Bearer {token['access_token']}",
             "Content-Type": "application/json",
         },
         timeout=10,
