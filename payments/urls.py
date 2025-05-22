@@ -11,6 +11,6 @@ urlpatterns = [
     path("bog/callback/", views.bog_callback, name="bog-callback"),
 
     # redirect URLs required by BoG
-    path("success/", views.success, name="payment-success"),
-    path("fail/",    views.fail,    name="payment-fail"),
+    path("bog/success/", views.success, name="payment-success"),
+    path("bog/fail/",    views.fail,    name="payment-fail"),
 ]
