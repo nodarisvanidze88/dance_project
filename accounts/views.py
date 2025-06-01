@@ -1,6 +1,7 @@
 from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView, CreateAPIView
 from rest_framework import status
+from rest_framework.views import APIView
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
 from drf_yasg.utils import swagger_auto_schema
@@ -8,7 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg import openapi
 from google.oauth2 import id_token
 from google.auth.transport import requests
-from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer, UserChangeDetailsSerializer, UserEmailVerificationSerializer, UserDetailsSerializer, GoogleAuthSerializer
+from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer, UserChangeDetailsSerializer, UserEmailVerificationSerializer, UserDetailsSerializer, GoogleAuthSerializer, UserPhoneVerificationSerializer
 from rest_framework.permissions import IsAuthenticated
 from .errorMessageHandler import get_error_message, errorMessages
 from .models import CustomUser, UserVerificationCodes
@@ -122,40 +123,58 @@ class UserChangeDetailsViews(GenericAPIView):
         # Extract validated data
         email = serializer.validated_data.get('email')
         phone = serializer.validated_data.get('phone')
+        username = serializer.validated_data.get('username')
         password = serializer.validated_data.get('password')
+        login_field = serializer.validated_data.get('choose_main_login_field')
+        if not email and not phone and not password:
+            return Response(get_error_message(errorMessages,"noChanges"), status=status.HTTP_400_BAD_REQUEST)
 
         # Fetch the user from the database
         db_user = CustomUser.objects.get(id=user.id)
         user_code = UserVerificationCodes.objects.get(user_id=db_user.id)
 
-        # Update email
-        if email:
+        if login_field =="email":
+            if not email:
+                return Response(get_error_message(errorMessages,"emailRequired"), status=status.HTTP_400_BAD_REQUEST)
+            try:
+                custom_email_validator(email)
+            except:
+                return Response(get_error_message(errorMessages, "invalidEmail"), status=status.HTTP_400_BAD_REQUEST)
             email_searched_user = CustomUser.objects.filter(Q(email_or_phone=email) | Q(email=email)).exclude(id=db_user.id).first()
             if email_searched_user:
                 return Response(get_error_message(errorMessages,"usedUserDetails"), status=status.HTTP_400_BAD_REQUEST)
-            if "@" in db_user.email_or_phone:
-                db_user.email_or_phone = email
-                if db_user.email and db_user.email != email:
-                    user_code.email_verified = False
-                    user_code.code = str(random.randint(100000, 999999))
-                    user_code.save()
-                    user_code.send_verification_email(new_user=email)
+            db_user.email_or_phone = email
+            if db_user.email and db_user.email != email:
+                user_code.email_verified = False
+                user_code.code = str(random.randint(100000, 999999))
+                user_code.save()
+                user_code.send_verification_email(new_user=email)
+            if not user_code.email_verified:
+                user_code.send_verification_email(new_user=email)
             db_user.email = email
 
-        # Update phone
-        if phone:
-            phone_searched_user = CustomUser.objects.filter(Q(email_or_phone=phone) | Q(phone=phone)).exclude(id=db_user.id).first()
-            if phone_searched_user:
-                return Response(get_error_message(errorMessages,"usedUserDetails"), status=status.HTTP_400_BAD_REQUEST)
+        elif login_field == "phone":
+            if not phone:
+                return Response(get_error_message(errorMessages,"phoneRequired"), status=status.HTTP_400_BAD_REQUEST)
+            try:
+                custom_phone_validator(phone)
+            except:
+                return Response(get_error_message(errorMessages,"invalidPhone"), status=status.HTTP_400_BAD_REQUEST)
+            db_user.email_or_phone = phone
+            if db_user.phone and db_user.phone != phone:
+                user_code.phone_verified = False
+                user_code.code = str(random.randint(100000, 999999))
+                user_code.save()
+                user_code.send_verification_sms(new_user=phone)
+            if not user_code.phone_verified:
+                user_code.send_verification_sms(new_user=phone)
             db_user.phone = phone
-            if db_user.email_or_phone.startswith("+995"):
-                db_user.email_or_phone = phone
-
-        # Update password
+        else:
+            return Response(get_error_message(errorMessages,"invalidLoginField"), status=status.HTTP_400_BAD_REQUEST)
+        if username:
+            db_user.username = username
         if password:
             db_user.set_password(password)
-            db_user.save() 
-
         db_user.save()
         return Response(get_error_message(errorMessages,"successChanges"))
     
@@ -170,7 +189,52 @@ class UserEmailVerificationView(GenericAPIView):
             user_code.save()
             return Response(get_error_message(errorMessages,"emailVerified"))
         return Response(get_error_message(errorMessages,"invalidEmailCode"), status=status.HTTP_400_BAD_REQUEST)
-    
+
+class UserEmailVerificationResendView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        user_code = UserVerificationCodes.objects.filter(user_id=user.id).first()
+        if user_code:
+            try:
+                user_code.send_verification_email(new_user=user.email)
+            except:
+                return Response(get_error_message(errorMessages, "emailOrPhoneRequired"),
+                                status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response(get_error_message(errorMessages, "emailVerificationCodeRequired"))
+
+        return Response(get_error_message(errorMessages, "emailOrPhoneRequired"),
+                        status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserPhoneVerificationView(GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserPhoneVerificationSerializer
+    def post(self, request):
+        code = request.data.get('code')
+        user_code = UserVerificationCodes.objects.filter(code=code).first()
+        if user_code:
+            user_code.phone_verified = True
+            user_code.save()
+            return Response(get_error_message(errorMessages,"phoneVerified"))
+        return Response(get_error_message(errorMessages,"invalidPhoneCode"), status=status.HTTP_400_BAD_REQUEST)
+
+class UserPhoneVerificationResendView(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        user = request.user
+        user_code = UserVerificationCodes.objects.filter(user_id=user.id).first()
+        if user_code:
+            try:
+                user_code.send_verification_sms(new_user=user.phone)
+            except:
+                return Response(get_error_message(errorMessages,"emailOrPhoneRequired"), status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response(get_error_message(errorMessages,"phoneVerificationCodeRequired"))
+        return Response(get_error_message(errorMessages,"emailOrPhoneRequired"), status=status.HTTP_400_BAD_REQUEST)
+
 class UserDetails(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = UserDetailsSerializer
@@ -179,16 +243,22 @@ class UserDetails(GenericAPIView):
         user_phone_email_validation = UserVerificationCodes.objects.filter(user_id=user.id).first()
         result = {
             "email_or_phone": user.email_or_phone,
+            "email_verified": None,
+            "phone_verified": None,
         }
-        if user.email:
-            result["email"] = user.email
-        if user.phone:
-            result["phone"] = user.phone
         if user_phone_email_validation:
-            if user_phone_email_validation.email_verified:
-                result["email_verified"] = user_phone_email_validation.email_verified
-            if user_phone_email_validation.phone_verified:
-                result["phone_verified"] = user_phone_email_validation.phone_verified
+            if user.email:
+                result["email"] = user.email
+                if user_phone_email_validation.email_verified:
+                    result["email_verified"] = user_phone_email_validation.email_verified
+                else:
+                    result["email_verified"] = False
+            if user.phone:
+                result["phone"] = user.phone                
+                if user_phone_email_validation.phone_verified:
+                    result["phone_verified"] = user_phone_email_validation.phone_verified
+                else:
+                    result["phone_verified"] = False
         return Response(result)
 
 class GoogleAuthView(GenericAPIView):

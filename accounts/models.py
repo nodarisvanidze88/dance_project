@@ -8,7 +8,7 @@ from django.conf import settings
 from .errorMessageHandler import get_error_message, errorMessages
 from .validators import custom_email_validator, custom_phone_validator
 import random
-
+import requests
 def validate_email_or_phone(value):
     try:
         custom_email_validator(value)
@@ -43,6 +43,8 @@ class CustomUserManager(BaseUserManager):
 
         if user.email:
             user.send_verification_email()
+        if user.phone:
+            user.send_verification_sms()
 
         return user
 
@@ -116,7 +118,32 @@ class CustomUser(AbstractBaseUser):
             [self.email],
             fail_silently=False
         )
-        
+    def send_verification_sms(self):
+        """
+        Uses Django's send_mail to email the verification code to the user.
+        Make sure your EMAIL_* settings are configured in settings.py.
+        """
+        if not self.phone:
+            return
+        try:
+            user_code = UserVerificationCodes.objects.get(user=self)
+        except UserVerificationCodes.DoesNotExist:
+            return  # or handle error
+        try:
+            message = f"Your verification code is: {user_code.code}"
+            url = "https://sender.ge/api/send.php"
+            payload = {
+                "apikey": settings.SENDER_GE_API_KEY,       # ✅ must match Sender.ge API param
+                "smsno": "2",                                # 1 = promo, 2 = transactional
+                "destination": self.phone[-9:],              # must be 9 digits only (no +995)
+                "content": message,
+            }
+
+            requests.post(url, data=payload)
+        except requests.RequestException as e:
+            print(f"Error sending SMS: {e}")
+            # Optionally, you can log the error or handle it as needed.
+
     def save(self, *args, **kwargs):
         if self.pk:
             old_password = CustomUser.objects.get(pk=self.pk).password
@@ -161,3 +188,25 @@ class UserVerificationCodes(models.Model):
             [target_email],
             fail_silently=False
         )
+    def send_verification_sms(self, new_user=None):
+        """
+        Uses Django's send_mail to email the verification code to the user.
+        Make sure your EMAIL_* settings are configured in settings.py.
+        """
+        if not self.user.phone:
+            return
+        try:
+            user_code = self.code
+            message = f"Your verification code is: {user_code}"
+            url = "https://sender.ge/api/send.php"
+            payload = {
+                "apikey": settings.SENDER_GE_API_KEY,       # ✅ must match Sender.ge API param
+                "smsno": "2",                                # 1 = promo, 2 = transactional
+                "destination": new_user[-9:] if new_user else self.user.phone[-9:],         # must be 9 digits only (no +995)
+                "content": message,
+            }
+
+            requests.post(url, data=payload)
+        except requests.RequestException as e:
+            print(f"Error sending SMS: {e}")
+            # Optionally, you can log the error or handle it as needed.

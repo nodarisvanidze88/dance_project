@@ -51,6 +51,22 @@ errorMessages = {
 
     "emailVerificationCodeRequired": ["ელ.ფოსტის კოდი აუცილებელია",
                         "Email verification code is required"],
+    "noChanges": ["არანაირი ცვლილება არ არის",
+                        "No changes made"],
+    "emailRequired": ["ელ.ფოსტა აუცილებელია",
+                      "Email is required"],
+    "phoneRequired": ["ტელეფონი აუცილებელია",
+                     "Phone is required"],
+    "invalidPhone": ["არასწორი ტელეფონის ნომერი",
+                        "Invalid phone number"],
+    "invalidEmail": ["არასწორი ელ.ფოსტის ფორმატი",
+                     "Invalid email format"],
+    "phoneVerified": ["ტელეფონი დადასტურებულია",
+                     "Phone verified"],
+    "invalidPhoneCode": ["არასწორი ტელეფონის კოდი",
+                         "Invalid phone code"],
+    "phoneVerificationCodeRequired": ["ტელეფონის კოდი აუცილებელია",
+                                      "Phone verification code is required"],   
 }
 
 def get_error_message(messages,key):

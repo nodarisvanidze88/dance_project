@@ -119,14 +119,26 @@ class CourseView(GenericAPIView):
                 ]
             )
     def get(self, request):
+        def build_comment_tree(comment):
+            return {
+                'comment_id': comment.id,
+                'comment': comment.comment,
+                'user': comment.user.username,
+                'created_at': comment.created_at,
+                'updated_at': comment.updated_at,
+                'is_active': comment.is_active,
+                'vote': comment.vote,
+                'children': [build_comment_tree(child) for child in comment.replies.all()]
+            }
         category_id = request.query_params.get('category_id')
         author_id = request.query_params.get('author_id')
+        
         course_data = Course.objects.all()
         if author_id:
             course_data = course_data.filter(author_id=author_id)
         if category_id:
             course_data = course_data.filter(author__category__id=category_id)
-        
+        top_level_comments = CourseCommentVotes.objects.filter(course_id__in=course_data.values_list('id', flat=True), parent__isnull=True)
         group_data = {'ka':[], 'en':[]}
         for course in course_data:
             data_ka = {
@@ -146,6 +158,7 @@ class CourseView(GenericAPIView):
                 "rank": course.avg_vote,
                 "video_count": course.get_total_videos,
                 "total_price": course.get_total_price,
+                'comment_data': [build_comment_tree(comment) for comment in top_level_comments if comment.course_id == course.id]
             }
             data_en = {
                 'course_id': course.id,
@@ -164,6 +177,7 @@ class CourseView(GenericAPIView):
                 "rank": course.avg_vote,
                 "video_count": course.get_total_videos,
                 "total_price": course.get_total_price,
+                'comment_data': [build_comment_tree(comment) for comment in top_level_comments if comment.course_id == course.id]
             }
             group_data['ka'].append(data_ka)
             group_data['en'].append(data_en)
@@ -184,17 +198,17 @@ class VideoContentView(GenericAPIView):
         get_course_id = request.query_params.get('course_id')
         video_data = VideoContent.objects.filter(course_id=get_course_id)
         top_level_comments = CourseCommentVotes.objects.filter(course_id=get_course_id, parent__isnull=True)
-        def build_comment_tree(comment):
-            return {
-                'comment_id': comment.id,
-                'comment': comment.comment,
-                'user': comment.user.username,
-                'created_at': comment.created_at,
-                'updated_at': comment.updated_at,
-                'is_active': comment.is_active,
-                'vote': comment.vote,
-                'children': [build_comment_tree(child) for child in comment.replies.all()]
-            }
+        # def build_comment_tree(comment):
+        #     return {
+        #         'comment_id': comment.id,
+        #         'comment': comment.comment,
+        #         'user': comment.user.username,
+        #         'created_at': comment.created_at,
+        #         'updated_at': comment.updated_at,
+        #         'is_active': comment.is_active,
+        #         'vote': comment.vote,
+        #         'children': [build_comment_tree(child) for child in comment.replies.all()]
+        #     }
         group_data = {'ka':[], 'en':[]}
         for video in video_data:
             data_ka = {
@@ -213,7 +227,7 @@ class VideoContentView(GenericAPIView):
                     'course_id': video.course.id,
                     'course': video.course.name_ka,
                 },
-                'comment_data': [build_comment_tree(comment) for comment in top_level_comments]
+                # 'comment_data': [build_comment_tree(comment) for comment in top_level_comments]
 
             }
             data_en = {
@@ -232,7 +246,7 @@ class VideoContentView(GenericAPIView):
                     'course_id': video.course.id,
                     'course': video.course.name_en,
                 },
-                'comment_data': [build_comment_tree(comment) for comment in top_level_comments]
+                # 'comment_data': [build_comment_tree(comment) for comment in top_level_comments]
             }
             group_data['ka'].append(data_ka)
             group_data['en'].append(data_en)

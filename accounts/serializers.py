@@ -172,6 +172,13 @@ class UserChangeDetailsSerializer(serializers.ModelSerializer):
             custom_email_validator
         ]
     )
+    username = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=150,
+        help_text="Username is optional and can be blank or null."
+    )
     phone = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -179,12 +186,18 @@ class UserChangeDetailsSerializer(serializers.ModelSerializer):
             custom_phone_validator
         ]
     )
+    choose_main_login_field = serializers.ChoiceField(
+        choices=['email', 'phone'],
+        default='email',
+        allow_blank=False,
+        help_text="Choose the main login field. 'email' or 'phone'. Default is 'email'."
+    )
     password = serializers.CharField(write_only=True, required=False, allow_blank=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=False, allow_blank=True,)
 
     class Meta:
         model = User  # Replace with your custom user model
-        fields = ['email_or_phone','email', 'phone', 'password', 'password2']
+        fields = ['email_or_phone','email', 'phone', 'choose_main_login_field', 'password', 'password2']
 
     def validate(self, attrs):
         # Ensure passwords match if provided
@@ -213,6 +226,24 @@ class UserEmailVerificationSerializer(serializers.ModelSerializer):
                 ]
             })
         return attrs
+
+class UserPhoneVerificationSerializer(serializers.ModelSerializer):
+    code = serializers.CharField(
+        required=True,
+    )
+    class Meta:
+        model = UserVerificationCodes
+        fields = ['code']
+        
+    def validate(self, attrs):
+        phone_code = attrs.get('code')
+        if not phone_code:
+            raise serializers.ValidationError({
+                "code": [
+                    get_error_message(errorMessages, "emailVerificationCodeRequired")
+                ]
+            })
+        return attrs    
     
 class UserDetailsSerializer(serializers.ModelSerializer):
     class Meta:
