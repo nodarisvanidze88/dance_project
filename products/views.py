@@ -1,12 +1,13 @@
 from rest_framework.generics import GenericAPIView
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import status
 from .utils import str_to_bool
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Q
 from drf_yasg import openapi
 from .models import Course, CourseAuthor, VideoContent, CourseCommentVotes
-from .serializers import CourseSerializer, VideoContentSerializer
+from .serializers import CourseSerializer, VideoContentSerializer, CourseCommentCreateSerializer
 from rest_framework.permissions import IsAuthenticated
 
 class DanceCategoryAuthorView(APIView):
@@ -252,3 +253,20 @@ class VideoContentView(GenericAPIView):
             group_data['en'].append(data_en)
         return Response(group_data)
     
+class AddNewCommentView(GenericAPIView):
+    serializer_class = CourseCommentCreateSerializer
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        request_body=CourseCommentCreateSerializer,
+        responses={201: "Comment added successfully", 400: "Bad Request"}
+    )
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            comment = serializer.save()
+            return Response({
+                "message": "Comment added successfully",
+                "comment_id": comment.id
+            }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Course, Category, CourseAuthor, VideoContent
+from .models import Course, Category, CourseAuthor, VideoContent, CourseCommentVotes
 
 class AuthorSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,3 +25,15 @@ class VideoContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = VideoContent
         fields = '__all__'
+
+class CourseCommentCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CourseCommentVotes
+        fields = ['course', 'comment', 'vote', 'parent']
+        extra_kwargs = {
+            'parent': {'required': False, 'allow_null': True},
+        }
+
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
