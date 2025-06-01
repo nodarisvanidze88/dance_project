@@ -33,13 +33,13 @@ class CustomUserManager(BaseUserManager):
         if password:
             user.set_password(password)
         user.save(using=self._db)
-        generated_code = str(random.randint(100000, 999999))
-        instance, created = UserVerificationCodes.objects.get_or_create(user=user)
-        if created:
-            instance.code = generated_code
-            instance.save()
-
-        
+        try:
+            instance, created = UserVerificationCodes.objects.get_or_create(user=user)
+            if created:
+                instance.code = str(random.randint(100000, 999999))
+                instance.save()
+        except Exception as e:
+            print(f"❌ Failed to create verification code: {e}")
 
         if user.email:
             user.send_verification_email()
@@ -108,16 +108,23 @@ class CustomUser(AbstractBaseUser):
             return  # no email, skip
         
         subject = "Verify your email"
-        user_code = UserVerificationCodes.objects.get(user=self)
+        try:
+            user_code = UserVerificationCodes.objects.get(user=self)
+        except UserVerificationCodes.DoesNotExist:
+            print("❌ Verification code not found for user.")
+            return
         message = f"Your verification code is: {user_code.code}"
-        
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,  # or "no-reply@yourdomain.com"
-            [self.email],
-            fail_silently=False
-        )
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,  # or "no-reply@yourdomain.com"
+                [self.email],
+                fail_silently=False
+            )
+        except Exception as e:
+            print(f"❌ Failed to send email: {e}")
+
     def send_verification_sms(self):
         """
         Uses Django's send_mail to email the verification code to the user.
