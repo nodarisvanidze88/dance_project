@@ -197,7 +197,7 @@ class UserChangeDetailsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User  # Replace with your custom user model
-        fields = ['email_or_phone','email', 'phone', 'choose_main_login_field', 'password', 'password2']
+        fields = ['email_or_phone','email', 'phone', 'choose_main_login_field', 'password', 'password2','username']
 
     def validate(self, attrs):
         # Ensure passwords match if provided
