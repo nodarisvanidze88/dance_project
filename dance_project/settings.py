@@ -91,6 +91,7 @@ WSGI_APPLICATION = 'dance_project.wsgi.application'
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+print()
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
