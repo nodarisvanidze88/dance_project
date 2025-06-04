@@ -49,6 +49,7 @@ checkout_request_example = openapi.Schema(
     },
 )
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def checkout(request):
     ser = CheckoutRequestSerializer(data=request.data)
     ser.is_valid(raise_exception=True)
@@ -58,7 +59,6 @@ def checkout(request):
     videos = list(
         VideoContent.objects.filter(id__in=video_ids, is_active=True)
     )
-    print(f"my_videossssssss {videos}")
     if not videos:
         return Response({"error": "no active videos found"}, status=404)
     if len(videos) != len(video_ids):

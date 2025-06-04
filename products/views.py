@@ -9,6 +9,7 @@ from drf_yasg import openapi
 from .models import Course, CourseAuthor, VideoContent, CourseCommentVotes
 from .serializers import CourseSerializer, VideoContentSerializer, CourseCommentCreateSerializer
 from rest_framework.permissions import IsAuthenticated
+from payments.models import PaymentOrder
 
 class DanceCategoryAuthorView(APIView):
     permission_classes = [IsAuthenticated]
@@ -139,7 +140,6 @@ class CourseView(GenericAPIView):
             course_data = course_data.filter(author_id=author_id)
         if category_id:
             course_data = course_data.filter(author__category__id=category_id)
-        top_level_comments = CourseCommentVotes.objects.filter(course_id__in=course_data.values_list('id', flat=True), parent__isnull=True)
         group_data = {'ka':[], 'en':[]}
         for course in course_data:
             data_ka = {
@@ -159,7 +159,7 @@ class CourseView(GenericAPIView):
                 "rank": course.avg_vote,
                 "video_count": course.get_total_videos,
                 "total_price": course.get_total_price,
-                'comment_data': [build_comment_tree(comment) for comment in top_level_comments if comment.course_id == course.id]
+                
             }
             data_en = {
                 'course_id': course.id,
@@ -178,7 +178,7 @@ class CourseView(GenericAPIView):
                 "rank": course.avg_vote,
                 "video_count": course.get_total_videos,
                 "total_price": course.get_total_price,
-                'comment_data': [build_comment_tree(comment) for comment in top_level_comments if comment.course_id == course.id]
+                
             }
             group_data['ka'].append(data_ka)
             group_data['en'].append(data_en)
@@ -187,36 +187,38 @@ class CourseView(GenericAPIView):
 class VideoContentView(GenericAPIView):
     serializer_class = VideoContentSerializer
     permission_classes = [IsAuthenticated]
+
     @swagger_auto_schema(
-            manual_parameters=[
-                openapi.Parameter(
-                    'course_id', 
-                    openapi.IN_QUERY, 
-                    description="course ID", 
-                    type=openapi.TYPE_INTEGER
-                    )])
+        manual_parameters=[
+            openapi.Parameter(
+                'course_id',
+                openapi.IN_QUERY,
+                description="course ID",
+                type=openapi.TYPE_INTEGER
+            )
+        ])
     def get(self, request):
-        get_course_id = request.query_params.get('course_id')
-        video_data = VideoContent.objects.filter(course_id=get_course_id)
-        top_level_comments = CourseCommentVotes.objects.filter(course_id=get_course_id, parent__isnull=True)
-        # def build_comment_tree(comment):
-        #     return {
-        #         'comment_id': comment.id,
-        #         'comment': comment.comment,
-        #         'user': comment.user.username,
-        #         'created_at': comment.created_at,
-        #         'updated_at': comment.updated_at,
-        #         'is_active': comment.is_active,
-        #         'vote': comment.vote,
-        #         'children': [build_comment_tree(child) for child in comment.replies.all()]
-        #     }
-        group_data = {'ka':[], 'en':[]}
+        user = request.user
+        course_id = request.query_params.get('course_id')
+        video_data = VideoContent.objects.filter(course_id=course_id)
+
+        # Get set of video IDs the user has paid for
+        paid_video_ids = set(
+            PaymentOrder.objects.filter(user=user, status="paid")
+            .values_list("videos__id", flat=True)
+        )
+        print("this is paid video ids", paid_video_ids)
+
+        group_data = {'ka': [], 'en': []}
         for video in video_data:
+            has_access = video.id in paid_video_ids
+
             data_ka = {
                 'video_id': video.id,
                 'video_title': video.title_ka,
                 'video_description': video.description_ka,
-                'video_url': video.video_url,
+                'video_url': video.video_url if has_access or video.demo else None,
+                'video_thumbnail': request.build_absolute_uri(video.thumbnail.url) if video.thumbnail else None,
                 'video_demo': video.demo,
                 'video_price': video.price,
                 'video_discount_price': video.discount_price,
@@ -224,18 +226,17 @@ class VideoContentView(GenericAPIView):
                 'video_is_active': video.is_active,
                 'video_created_at': video.created_at,
                 'video_updated_at': video.updated_at,
-                'course_data':{
-                    'course_id': video.course.id,
-                    'course': video.course.name_ka,
+                'course_data': {
+                    'course_id': video.course.id if video.course else None,
+                    'course': video.course.name_ka if video.course else None,
                 },
-                # 'comment_data': [build_comment_tree(comment) for comment in top_level_comments]
-
             }
             data_en = {
                 'video_id': video.id,
                 'video_title': video.title_en,
                 'video_description': video.description_en,
-                'video_url': video.video_url,
+                'video_url': video.video_url if has_access or video.demo else None,
+                'video_thumbnail': request.build_absolute_uri(video.thumbnail.url) if video.thumbnail else None,
                 'video_demo': video.demo,
                 'video_price': video.price,
                 'video_discount_price': video.discount_price,
@@ -243,20 +244,51 @@ class VideoContentView(GenericAPIView):
                 'video_is_active': video.is_active,
                 'video_created_at': video.created_at,
                 'video_updated_at': video.updated_at,
-                'course_data':{
-                    'course_id': video.course.id,
-                    'course': video.course.name_en,
+                'course_data': {
+                    'course_id': video.course.id if video.course else None,
+                    'course': video.course.name_en if video.course else None,
                 },
-                # 'comment_data': [build_comment_tree(comment) for comment in top_level_comments]
             }
+
             group_data['ka'].append(data_ka)
             group_data['en'].append(data_en)
+
         return Response(group_data)
-    
-class AddNewCommentView(GenericAPIView):
+
+class CommentView(APIView):
     serializer_class = CourseCommentCreateSerializer
     permission_classes = [IsAuthenticated]
+    def build_comment_tree(self, comment):
+        return {
+            'comment_id': comment.id,
+            'comment': comment.comment,
+            'user': comment.user.username,
+            'created_at': comment.created_at,
+            'updated_at': comment.updated_at,
+            'is_active': comment.is_active,
+            'vote': comment.vote,
+            'children': [self.build_comment_tree(child) for child in comment.replies.all()]
+        }
 
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'course_id',
+                openapi.IN_QUERY,
+                description="Course ID",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            )
+        ],
+        responses={200: "List of comments with nested replies"}
+    )
+    def get(self, request):
+        course_id = request.query_params.get('course_id')
+        if not course_id:
+            return Response({"detail": "course_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        top_level_comments = CourseCommentVotes.objects.filter(course_id=course_id, parent__isnull=True)
+        comments_tree = [self.build_comment_tree(comment) for comment in top_level_comments]
+        return Response(comments_tree)
     @swagger_auto_schema(
         request_body=CourseCommentCreateSerializer,
         responses={201: "Comment added successfully", 400: "Bad Request"}
