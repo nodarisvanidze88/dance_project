@@ -243,6 +243,7 @@ class UserDetails(GenericAPIView):
         user_phone_email_validation = UserVerificationCodes.objects.filter(user_id=user.id).first()
         result = {
             "email_or_phone": user.email_or_phone,
+            "username": user.username,
             "email_verified": None,
             "phone_verified": None,
         }
