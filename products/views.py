@@ -255,7 +255,7 @@ class VideoContentView(GenericAPIView):
 
         return Response(group_data)
 
-class CommentView(APIView):
+class CommentView(GenericAPIView):
     serializer_class = CourseCommentCreateSerializer
     permission_classes = [IsAuthenticated]
     def build_comment_tree(self, comment):
