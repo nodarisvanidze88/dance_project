@@ -1,12 +1,12 @@
 import json
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework.views import APIView
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .serializers import VideoContentSerializer
-
+from django.utils.timezone import localtime
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
 
@@ -164,3 +164,25 @@ def success(request):
 @csrf_exempt
 def fail(request):
     return HttpResponse("Payment failed or cancelled.", status=200)
+
+
+class SoldVideoReportView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        data = []
+
+        payment_orders = PaymentOrder.objects.filter(status="paid").prefetch_related('videos', 'user')
+
+        for order in payment_orders:
+            for video in order.videos.all():
+                data.append({
+                    "Video Title": video.title_ka,
+                    "Sold At": localtime(order.created_at).strftime("%Y-%m-%d %H:%M"),
+                    "Price (GEL)": f"{video.discount_price or video.price:.2f}",
+                    "Buyer": order.user.email_or_phone,
+                    "Course Name": video.course.name_ka if video.course else "",
+                    "Course Author": video.course.author.name_ka if video.course and video.course.author else "",
+                })
+
+        return Response(data)

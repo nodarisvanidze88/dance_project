@@ -66,7 +66,11 @@ errorMessages = {
     "invalidPhoneCode": ["არასწორი ტელეფონის კოდი",
                          "Invalid phone code"],
     "phoneVerificationCodeRequired": ["ტელეფონის კოდი აუცილებელია",
-                                      "Phone verification code is required"],   
+                                      "Phone verification code is required"], 
+    "sendEmailImpossible": ["ელ.ფოსტის გაგზავნა შეუძლებელია",
+                            "Unable to send email"],
+    "emailSentSuccessfully": ["ელ.ფოსტი წარმატებით გაიგზავნა",
+                            "Email sent successfully"],
 }
 
 def get_error_message(messages,key):

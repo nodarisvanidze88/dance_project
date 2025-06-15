@@ -9,6 +9,7 @@ urlpatterns = [
 
     # Bank callback
     path("bog/callback/", views.bog_callback, name="bog-callback"),
+    path("report/sold-videos/", views.SoldVideoReportView.as_view(), name="sold-video-report"),
 
     # redirect URLs required by BoG
     path("bog/success/", views.success, name="payment-success"),

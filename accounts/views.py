@@ -200,10 +200,10 @@ class UserEmailVerificationResendView(APIView):
             try:
                 user_code.send_verification_email(new_user=user.email)
             except:
-                return Response(get_error_message(errorMessages, "emailOrPhoneRequired"),
+                return Response(get_error_message(errorMessages, "sendEmailImpossible"),
                                 status=status.HTTP_400_BAD_REQUEST)
             else:
-                return Response(get_error_message(errorMessages, "emailVerificationCodeRequired"))
+                return Response(get_error_message(errorMessages, "emailSentSuccessfully"), status=status.HTTP_200_OK)
 
         return Response(get_error_message(errorMessages, "emailOrPhoneRequired"),
                         status=status.HTTP_400_BAD_REQUEST)
