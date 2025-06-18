@@ -7,6 +7,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from .errorMessageHandler import get_error_message, errorMessages
 from .validators import custom_email_validator, custom_phone_validator
+from mailersend import emails
 import random
 import requests
 def validate_email_or_phone(value):
@@ -106,7 +107,18 @@ class CustomUser(AbstractBaseUser):
         """
         if not self.email:
             return  # no email, skip
-        
+        mailer = emails.NewEmail(settings.MAILER_SENDER_TOKEN)
+        mail_body = {}
+        mail_from = {
+            "name": "Tieli",
+            "email": settings.DEFAULT_FROM_EMAIL,
+        }
+        recipients = [
+            {
+                "name": self.email_or_phone,
+                "email": self.email,
+            }
+        ]
         subject = "Verify your email"
         try:
             user_code = UserVerificationCodes.objects.get(user=self)
@@ -115,13 +127,12 @@ class CustomUser(AbstractBaseUser):
             return
         message = f"Your verification code is: {user_code.code}"
         try:
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,  # or "no-reply@yourdomain.com"
-                [self.email],
-                fail_silently=False
-            )
+            mailer.set_mail_from(mail_from, mail_body)
+            mailer.set_mail_to(recipients, mail_body)
+            mailer.set_subject(subject, mail_body)
+            mailer.set_html_content(message, mail_body)
+            # mailer.set_plaintext_content(message, mail_body)
+            mailer.send(mail_body)
         except Exception as e:
             print(f"❌ Failed to send email: {e}")
 
@@ -184,17 +195,31 @@ class UserVerificationCodes(models.Model):
         """
         if not self.user.email:
             return  # no email, skip 
+        if not self.email:
+            return  # no email, skip
+        mailer = emails.NewEmail(settings.MAILER_SENDER_TOKEN)
+        mail_body = {}
+        mail_from = {
+            "name": "Tieli",
+            "email": settings.DEFAULT_FROM_EMAIL,
+        }
+        target_email = new_user if new_user else self.user.email
+        recipients = [
+            {
+                "name": target_email,
+                "email": target_email,
+            }
+        ]
         subject = "Verify your email"
         user_code = self.code
         message = f"Your verification code is: {user_code}"
         target_email = new_user if new_user else self.user.email
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,  # or "no-reply@yourdomain.com"
-            [target_email],
-            fail_silently=False
-        )
+        mailer.set_mail_from(mail_from, mail_body)
+        mailer.set_mail_to(recipients, mail_body)
+        mailer.set_subject(subject, mail_body)
+        mailer.set_html_content(message, mail_body)
+        mailer.set_plaintext_content(message, mail_body)
+        mailer.send(mail_body)
     def send_verification_sms(self, new_user=None):
         """
         Uses Django's send_mail to email the verification code to the user.
