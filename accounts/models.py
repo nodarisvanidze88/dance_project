@@ -126,15 +126,15 @@ class CustomUser(AbstractBaseUser):
             print("❌ Verification code not found for user.")
             return
         message = f"Your verification code is: {user_code.code}"
-        try:
-            mailer.set_mail_from(mail_from, mail_body)
-            mailer.set_mail_to(recipients, mail_body)
-            mailer.set_subject(subject, mail_body)
-            mailer.set_html_content(message, mail_body)
-            # mailer.set_plaintext_content(message, mail_body)
-            mailer.send(mail_body)
-        except Exception as e:
-            print(f"❌ Failed to send email: {e}")
+        # try:
+        mailer.set_mail_from(mail_from, mail_body)
+        mailer.set_mail_to(recipients, mail_body)
+        mailer.set_subject(subject, mail_body)
+        mailer.set_html_content(message, mail_body)
+        # mailer.set_plaintext_content(message, mail_body)
+        print(mailer.send(mail_body))
+        # except Exception as e:
+        #     print(f"❌ Failed to send email: {e}")
 
     def send_verification_sms(self):
         """
@@ -195,8 +195,7 @@ class UserVerificationCodes(models.Model):
         """
         if not self.user.email:
             return  # no email, skip 
-        if not self.email:
-            return  # no email, skip
+
         mailer = emails.NewEmail(settings.MAILER_SENDER_TOKEN)
         mail_body = {}
         mail_from = {
@@ -219,7 +218,7 @@ class UserVerificationCodes(models.Model):
         mailer.set_subject(subject, mail_body)
         mailer.set_html_content(message, mail_body)
         mailer.set_plaintext_content(message, mail_body)
-        mailer.send(mail_body)
+        print(mailer.send(mail_body))   
     def send_verification_sms(self, new_user=None):
         """
         Uses Django's send_mail to email the verification code to the user.
