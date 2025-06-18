@@ -172,7 +172,7 @@ class SoldVideoReportView(APIView):
     def get(self, request):
         data = []
 
-        payment_orders = PaymentOrder.objects.filter(status="paid").prefetch_related('videos', 'user')
+        payment_orders = PaymentOrder.objects.filter(status="completed").prefetch_related('videos', 'user')
 
         for order in payment_orders:
             for video in order.videos.all():
