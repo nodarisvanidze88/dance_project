@@ -108,7 +108,7 @@ def checkout(request):
                 type=openapi.TYPE_OBJECT,
                 properties={
                     "order_id": openapi.Schema(type=openapi.TYPE_STRING),
-                    "status": openapi.Schema(type=openapi.TYPE_STRING, example="paid"),
+                    "status": openapi.Schema(type=openapi.TYPE_STRING, example="completed"),
                 },
             ),
         ),
@@ -131,7 +131,7 @@ def payment_status(request, order_id):
     responses={200: VideoContentSerializer(many=True)},
 )
 def my_videos(request):
-    paid_orders = PaymentOrder.objects.filter(user=request.user, status="paid")
+    paid_orders = PaymentOrder.objects.filter(user=request.user, status="completed")
     videos = VideoContent.objects.filter(payment_orders__in=paid_orders).distinct()
     from .serializers import VideoContentSerializer
     return Response(VideoContentSerializer(videos, many=True).data)
