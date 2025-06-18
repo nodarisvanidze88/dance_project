@@ -131,10 +131,13 @@ def payment_status(request, order_id):
     responses={200: VideoContentSerializer(many=True)},
 )
 def my_videos(request):
-    paid_orders = PaymentOrder.objects.filter(user=request.user, status="completed")
-    videos = VideoContent.objects.filter(payment_orders__in=paid_orders).distinct()
-    from .serializers import VideoContentSerializer
-    return Response(VideoContentSerializer(videos, many=True).data)
+    try:
+        paid_orders = PaymentOrder.objects.filter(user=request.user, status="completed")
+        videos = VideoContent.objects.filter(payment_orders__in=paid_orders).distinct()
+        from .serializers import VideoContentSerializer
+        return Response(VideoContentSerializer(videos, many=True).data)
+    except:
+        return Response({"error": "Authentication required"}, status=401)
 
 
 # --------------------------------------------------------------------------
