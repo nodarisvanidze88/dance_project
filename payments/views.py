@@ -182,7 +182,7 @@ class SoldVideoReportView(APIView):
                 data.append({
                     "Video Title": video.title_ka,
                     "Sold At": localtime(order.created_at).strftime("%Y-%m-%d %H:%M"),
-                    "Price (GEL)": f"{video.discount_price or video.price:.2f}",
+                    "Price (GEL)": f"{order.amount:.2f}",
                     "Buyer": order.user.email_or_phone,
                     "Course Name": video.course.name_ka if video.course else "",
                     "Course Author": video.course.author.name_ka if video.course and video.course.author else "",
