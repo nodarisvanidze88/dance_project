@@ -162,12 +162,13 @@ class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
 
 class UserChangeDetailsSerializer(serializers.ModelSerializer):
-    email_or_phone = serializers.CharField(
-        read_only=True,
-    )
+    # email_or_phone = serializers.CharField(
+    #     read_only=True,
+    # )
     email = serializers.EmailField(
         required=False,
         allow_blank=True,
+        allow_null=True,
         validators=[
             custom_email_validator
         ]
@@ -182,22 +183,23 @@ class UserChangeDetailsSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(
         required=False,
         allow_blank=True,
+        allow_null=True,
         validators=[
             custom_phone_validator
         ]
     )
-    choose_main_login_field = serializers.ChoiceField(
-        choices=['email', 'phone'],
-        default='email',
-        allow_blank=False,
-        help_text="Choose the main login field. 'email' or 'phone'. Default is 'email'."
-    )
+    # choose_main_login_field = serializers.ChoiceField(
+    #     choices=['email', 'phone'],
+    #     default='email',
+    #     allow_blank=False,
+    #     help_text="Choose the main login field. 'email' or 'phone'. Default is 'email'."
+    # )
     password = serializers.CharField(write_only=True, required=False, allow_blank=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=False, allow_blank=True,)
 
     class Meta:
         model = User  # Replace with your custom user model
-        fields = ['email_or_phone','email', 'phone', 'choose_main_login_field', 'password', 'password2','username']
+        fields = ['email', 'phone', 'password', 'password2','username']
 
     def validate(self, attrs):
         # Ensure passwords match if provided
@@ -258,4 +260,46 @@ class GoogleAuthSerializer(serializers.Serializer):
         id_token = attrs.get('id_token')
         if not id_token:
             raise serializers.ValidationError({"id_token": "Missing Google ID token."})
+        return attrs
+    
+class RequestPasswordRecoverySerializer(serializers.Serializer):
+    email_or_phone = serializers.CharField(
+        required=True,
+        validators=[validate_email_or_phone]
+    )
+
+    def validate(self, attrs):
+        email_or_phone = attrs.get('email_or_phone')
+        if not email_or_phone:
+            raise serializers.ValidationError({
+                "email_or_phone": [
+                    get_error_message(errorMessages, "emailOrPhoneRequired")
+                ]
+            })
+        return attrs
+    
+class PasswordResetSerializer(serializers.Serializer):
+    code = serializers.CharField(
+        required=True,
+    )
+    new_password = serializers.CharField(
+        write_only=True,
+        required=True,
+        validators=[validate_password],
+    )
+    new_password2 = serializers.CharField(
+        write_only=True,
+        required=True,
+    )
+
+    def validate(self, attrs):
+        code = attrs.get('code')
+        new_password = attrs.get('new_password')
+        new_password2 = attrs.get('new_password2')
+
+        if not code:
+            raise serializers.ValidationError({"code": get_error_message(errorMessages, "emailVerificationCodeRequired")})
+        if new_password != new_password2:
+            raise serializers.ValidationError({"new_password": get_error_message(errorMessages, "passwordsNotMatch")})
+
         return attrs

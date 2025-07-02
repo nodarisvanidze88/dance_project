@@ -9,7 +9,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from drf_yasg import openapi
 from google.oauth2 import id_token
 from google.auth.transport import requests
-from .serializers import LoginSerializer, RegistrationSerializer, LogoutSerializer, UserChangeDetailsSerializer, UserEmailVerificationSerializer, UserDetailsSerializer, GoogleAuthSerializer, UserPhoneVerificationSerializer
+from .serializers import LoginSerializer, PasswordResetSerializer, RegistrationSerializer, LogoutSerializer, UserChangeDetailsSerializer, UserEmailVerificationSerializer, UserDetailsSerializer, GoogleAuthSerializer, UserPhoneVerificationSerializer, RequestPasswordRecoverySerializer
 from rest_framework.permissions import IsAuthenticated
 from .errorMessageHandler import get_error_message, errorMessages
 from .models import CustomUser, UserVerificationCodes
@@ -64,14 +64,21 @@ class LoginView(GenericAPIView):
         user = CustomUser.objects.filter(
             Q(email_or_phone=email_or_phone) | Q(email=email_or_phone) | Q(phone=email_or_phone)
         ).first()
-
+        verifications = UserVerificationCodes.objects.filter(user_id=user.id).first() if user else None
         if user and check_password(password, user.password):
             # If the password matches, generate tokens
             refresh = user.tokens()
-            return Response({
+            result = {
                 "access": str(refresh['access']),
                 "refresh": str(refresh['refresh']),
-            }, status=status.HTTP_200_OK)
+            }
+            if user.email:
+                result["email_verified"] = verifications.email_verified if verifications else False
+            if user.phone:
+                result["phone_verified"] = verifications.phone_verified if verifications else False
+            if user.username:
+                result["username"] = user.username
+            return Response(result, status=status.HTTP_200_OK)
         
         # If no user is found or password doesn't match, return invalid credentials error
         return Response(get_error_message(errorMessages, "invalidCredentials"), status=status.HTTP_401_UNAUTHORIZED)
@@ -116,6 +123,7 @@ class UserChangeDetailsViews(GenericAPIView):
     serializer_class = UserChangeDetailsSerializer
 
     def post(self, request):
+        rand_code = str(random.randint(100000, 999999))
         user = request.user
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)  # Validates using the serializer
@@ -125,17 +133,17 @@ class UserChangeDetailsViews(GenericAPIView):
         phone = serializer.validated_data.get('phone')
         username = serializer.validated_data.get('username')
         password = serializer.validated_data.get('password')
-        login_field = serializer.validated_data.get('choose_main_login_field')
-        if not email and not phone and not password:
+        # login_field = serializer.validated_data.get('choose_main_login_field')
+        if not email and not phone and not username and not password:
             return Response(get_error_message(errorMessages,"noChanges"), status=status.HTTP_400_BAD_REQUEST)
 
         # Fetch the user from the database
         db_user = CustomUser.objects.get(id=user.id)
         user_code = UserVerificationCodes.objects.get(user_id=db_user.id)
 
-        if login_field =="email":
-            if not email:
-                return Response(get_error_message(errorMessages,"emailRequired"), status=status.HTTP_400_BAD_REQUEST)
+        # if login_field =="email":
+        if email:
+                # return Response(get_error_message(errorMessages,"emailRequired"), status=status.HTTP_400_BAD_REQUEST)
             try:
                 custom_email_validator(email)
             except:
@@ -143,34 +151,33 @@ class UserChangeDetailsViews(GenericAPIView):
             email_searched_user = CustomUser.objects.filter(Q(email_or_phone=email) | Q(email=email)).exclude(id=db_user.id).first()
             if email_searched_user:
                 return Response(get_error_message(errorMessages,"usedUserDetails"), status=status.HTTP_400_BAD_REQUEST)
-            db_user.email_or_phone = email
+            # db_user.email = email
             if db_user.email and db_user.email != email:
                 user_code.email_verified = False
-                user_code.code = str(random.randint(100000, 999999))
+                user_code.code = rand_code
                 user_code.save()
                 user_code.send_verification_email(new_user=email)
-            if not user_code.email_verified:
-                user_code.send_verification_email(new_user=email)
+            # if not user_code.email_verified:
+            #     user_code.send_verification_email(new_user=email)
             db_user.email = email
 
-        elif login_field == "phone":
-            if not phone:
-                return Response(get_error_message(errorMessages,"phoneRequired"), status=status.HTTP_400_BAD_REQUEST)
+        # elif login_field == "phone":
+        if phone:
+            # return Response(get_error_message(errorMessages,"phoneRequired"), status=status.HTTP_400_BAD_REQUEST)
             try:
                 custom_phone_validator(phone)
             except:
                 return Response(get_error_message(errorMessages,"invalidPhone"), status=status.HTTP_400_BAD_REQUEST)
-            db_user.email_or_phone = phone
+            # db_user.email_or_phone = phone
             if db_user.phone and db_user.phone != phone:
                 user_code.phone_verified = False
-                user_code.code = str(random.randint(100000, 999999))
+                user_code.code = rand_code
                 user_code.save()
                 user_code.send_verification_sms(new_user=phone)
-            if not user_code.phone_verified:
-                user_code.send_verification_sms(new_user=phone)
+            # if not user_code.phone_verified:
+            #     user_code.send_verification_sms(new_user=phone)
             db_user.phone = phone
-        else:
-            return Response(get_error_message(errorMessages,"invalidLoginField"), status=status.HTTP_400_BAD_REQUEST)
+
         if username:
             db_user.username = username
         if password:
@@ -186,6 +193,7 @@ class UserEmailVerificationView(GenericAPIView):
         user_code = UserVerificationCodes.objects.filter(code=code).first()
         if user_code:
             user_code.email_verified = True
+            user_code.code = ""
             user_code.save()
             return Response(get_error_message(errorMessages,"emailVerified"))
         return Response(get_error_message(errorMessages,"invalidEmailCode"), status=status.HTTP_400_BAD_REQUEST)
@@ -217,6 +225,7 @@ class UserPhoneVerificationView(GenericAPIView):
         user_code = UserVerificationCodes.objects.filter(code=code).first()
         if user_code:
             user_code.phone_verified = True
+            user_code.code = ""  # Reset code after verification
             user_code.save()
             return Response(get_error_message(errorMessages,"phoneVerified"))
         return Response(get_error_message(errorMessages,"invalidPhoneCode"), status=status.HTTP_400_BAD_REQUEST)
@@ -324,3 +333,55 @@ class GoogleAuthView(GenericAPIView):
             "access": access_token,
             "email_or_phone": user.email_or_phone
         }, status=status.HTTP_200_OK)
+    
+
+class RequestPasswordRecoveryView(GenericAPIView):
+    """
+    Endpoint to reset the user's password.
+    """
+    serializer_class = RequestPasswordRecoverySerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email_or_phone = serializer.validated_data.get('email_or_phone')
+        search_user = CustomUser.objects.filter(email_or_phone=email_or_phone).first()
+
+        if not search_user:
+            return Response(get_error_message(errorMessages, "userNotFound"), status=status.HTTP_404_NOT_FOUND)
+        
+        try:
+            custom_email_validator(email_or_phone)
+            search_user.send_verification_email()
+            return Response(get_error_message(errorMessages, "emailSentSuccessfully"))
+        except:
+            try:
+                custom_phone_validator(email_or_phone)
+                search_user.send_verification_sms()
+                return Response(get_error_message(errorMessages, "phoneVerificationCodeRequired"))
+            except:
+                return Response(get_error_message(errorMessages, "invalidPhoneOrEmail"), status=status.HTTP_400_BAD_REQUEST)
+
+class PasswordResetView(GenericAPIView):
+    """
+    Endpoint to reset the user's password.
+    """
+    serializer_class = PasswordResetSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        code = serializer.validated_data.get('code')
+        new_password = serializer.validated_data.get('new_password')
+
+        user_code = UserVerificationCodes.objects.filter(code=code).first()
+        if not user_code:
+            return Response(get_error_message(errorMessages, "invalidEmailCode"), status=status.HTTP_400_BAD_REQUEST)
+
+        user = user_code.user
+        user.set_password(new_password)
+        user.save()
+
+        return Response(get_error_message(errorMessages, "passwordChangedSuccessfully"))    

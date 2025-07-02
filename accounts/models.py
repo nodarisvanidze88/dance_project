@@ -10,6 +10,7 @@ from .validators import custom_email_validator, custom_phone_validator
 from mailersend import emails
 import random
 import requests
+
 def validate_email_or_phone(value):
     try:
         custom_email_validator(value)
@@ -34,13 +35,14 @@ class CustomUserManager(BaseUserManager):
         if password:
             user.set_password(password)
         user.save(using=self._db)
-        try:
-            instance, created = UserVerificationCodes.objects.get_or_create(user=user)
-            if created:
-                instance.code = str(random.randint(100000, 999999))
-                instance.save()
-        except Exception as e:
-            print(f"❌ Failed to create verification code: {e}")
+        # try:
+        #     instance, created = UserVerificationCodes.objects.get_or_create(user=user)
+            # instance.save()
+            # if created:
+            #     instance.code = str(random.randint(100000, 999999))
+            #     instance.save()
+        # except Exception as e:
+        #     print(f"❌ Failed to create verification code: {e}")
 
         if user.email:
             user.send_verification_email()
@@ -121,7 +123,9 @@ class CustomUser(AbstractBaseUser):
         ]
         subject = "Verify your email"
         try:
-            user_code = UserVerificationCodes.objects.get(user=self)
+            user_code, created = UserVerificationCodes.objects.get_or_create(user=self)
+            user_code.code = str(random.randint(100000, 999999))
+            user_code.save()
         except UserVerificationCodes.DoesNotExist:
             print("❌ Verification code not found for user.")
             return
@@ -144,7 +148,9 @@ class CustomUser(AbstractBaseUser):
         if not self.phone:
             return
         try:
-            user_code = UserVerificationCodes.objects.get(user=self)
+            user_code, created = UserVerificationCodes.objects.get_or_create(user=self)
+            user_code.code = str(random.randint(100000, 999999))
+            user_code.save()
         except UserVerificationCodes.DoesNotExist:
             return  # or handle error
         try:

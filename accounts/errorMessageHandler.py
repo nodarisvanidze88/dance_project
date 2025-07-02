@@ -71,6 +71,12 @@ errorMessages = {
                             "Unable to send email"],
     "emailSentSuccessfully": ["ელ.ფოსტი წარმატებით გაიგზავნა",
                             "Email sent successfully"],
+    "passwordChangedSuccessfully": ["პაროლი წარმატებით შეიცვალა",
+                                    "Password changed successfully"],
+    "userNotFound": ["მომხმარებელი ვერ მოიძებნა",
+                    "User not found"],
+    "invalidPhoneOrEmail": ["არასწორი ტელეფონი ან ელ.ფოსტა",
+                             "Invalid phone number or email address"],
 }
 
 def get_error_message(messages,key):
