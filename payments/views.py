@@ -152,7 +152,7 @@ def my_videos(request):
 
         # 2. Get all paid videos and extract their courses
         paid_videos = VideoContent.objects.filter(payment_orders__in=paid_orders).select_related('course')
-        courses = Course.objects.filter(videocontent__in=paid_videos).distinct().select_related('author')
+        courses = Course.objects.filter(videos__in=paid_videos).distinct().select_related('author')
 
         group_data = {'ka': [], 'en': []}
 
