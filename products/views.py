@@ -11,25 +11,109 @@ from .serializers import CourseSerializer, VideoContentSerializer, CourseComment
 from rest_framework.permissions import IsAuthenticated
 from payments.models import PaymentOrder
 
+# class DanceCategoryAuthorView(APIView):
+#     permission_classes = [IsAuthenticated]
+#     @swagger_auto_schema(
+#         manual_parameters=[
+#             openapi.Parameter('promoted', openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN),
+#             openapi.Parameter('is_new', openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN),
+#             openapi.Parameter('with_discount', openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN),
+#             openapi.Parameter('search', openapi.IN_QUERY, type=openapi.TYPE_STRING),
+#             openapi.Parameter('page', openapi.IN_QUERY, type=openapi.TYPE_INTEGER),
+#             openapi.Parameter('page_size', openapi.IN_QUERY, type=openapi.TYPE_INTEGER),
+#         ]
+#     )
+    
+#     def get(self, request):
+#         page = int(request.query_params.get('page', 1))
+#         page_size = int(request.query_params.get('page_size', 10))
+#         offset = (page - 1) * page_size
+
+#         filters = Q(is_active=True)
+#         if (val := request.query_params.get('promoted')) is not None:
+#             filters &= Q(promoted=str_to_bool(val))
+#         if (val := request.query_params.get('is_new')) is not None:
+#             filters &= Q(is_new=str_to_bool(val))
+#         if (val := request.query_params.get('with_discount')) is not None:
+#             filters &= Q(with_discount=str_to_bool(val))
+#         if (val := request.query_params.get('search')) is not None:
+#             filters &= (
+#                 Q(name_ka__icontains=val) |
+#                 Q(name_en__icontains=val) |
+#                 Q(description_ka__icontains=val) |
+#                 Q(description_en__icontains=val) |
+#                 Q(school_name_ka__icontains=val) |
+#                 Q(school_name_en__icontains=val)
+#             )
+
+#         queryset = CourseAuthor.objects.filter(filters).prefetch_related('category')
+
+#         paginated_authors = queryset.order_by('id')[offset:offset + page_size]
+
+#         ka_data, en_data = [], []
+
+#         for author in paginated_authors:
+#             for category in author.category.all():
+#                 image_url = request.build_absolute_uri(category.image.url) if category.image else None
+
+#                 ka_data.append({
+#                     "category_id": category.id,
+#                     "category": category.name_ka,
+#                     "category_image": image_url,
+#                     "author_data": {
+#                         "author_id": author.id,
+#                         "author": author.name_ka,
+#                         "author_description": author.description_ka,
+#                         "author_school_name": author.school_name_ka,
+#                         "author_is_new": author.is_new,
+#                         "author_promoted": author.promoted,
+#                         "author_with_discount": author.with_discount,
+#                     }
+#                 })
+#                 en_data.append({
+#                     "category_id": category.id,
+#                     "category": category.name_en,
+#                     "category_image": image_url,
+#                     "author_data": {
+#                         "author_id": author.id,
+#                         "author": author.name_en,
+#                         "author_description": author.description_en,
+#                         "author_school_name": author.school_name_en,
+#                         "author_is_new": author.is_new,
+#                         "author_promoted": author.promoted,
+#                         "author_with_discount": author.with_discount,
+#                     }
+#                 })
+
+#         if not ka_data:
+#             return Response([], status=200)
+#         total_count = len(ka_data)
+#         return Response({
+#             "pagination": {
+#                 "page": page,
+#                 "page_size": page_size,
+#                 "total_items": total_count,
+#                 "total_pages": (total_count + page_size - 1) // page_size
+#             },
+#             "data":{
+#                 "ka": ka_data,
+#                 "en": en_data,
+#             }  
+#         }, status=200)
 class DanceCategoryAuthorView(APIView):
     permission_classes = [IsAuthenticated]
+
     @swagger_auto_schema(
         manual_parameters=[
             openapi.Parameter('promoted', openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN),
             openapi.Parameter('is_new', openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN),
             openapi.Parameter('with_discount', openapi.IN_QUERY, type=openapi.TYPE_BOOLEAN),
             openapi.Parameter('search', openapi.IN_QUERY, type=openapi.TYPE_STRING),
-            openapi.Parameter('page', openapi.IN_QUERY, type=openapi.TYPE_INTEGER),
-            openapi.Parameter('page_size', openapi.IN_QUERY, type=openapi.TYPE_INTEGER),
         ]
     )
-    
     def get(self, request):
-        page = int(request.query_params.get('page', 1))
-        page_size = int(request.query_params.get('page_size', 10))
-        offset = (page - 1) * page_size
-
         filters = Q(is_active=True)
+
         if (val := request.query_params.get('promoted')) is not None:
             filters &= Q(promoted=str_to_bool(val))
         if (val := request.query_params.get('is_new')) is not None:
@@ -46,17 +130,23 @@ class DanceCategoryAuthorView(APIView):
                 Q(school_name_en__icontains=val)
             )
 
-        queryset = CourseAuthor.objects.filter(filters).prefetch_related('category')
+        queryset = CourseAuthor.objects.filter(filters).prefetch_related('category', 'course_set')
 
-        paginated_authors = queryset.order_by('id')[offset:offset + page_size]
+        group_data = {'ka': [], 'en': []}
 
-        ka_data, en_data = [], []
+        for author in queryset:
+            courses = author.course_set.all()
 
-        for author in paginated_authors:
+            # Calculate totals
+            total_videos = sum(course.get_total_videos for course in courses)
+            total_price = sum(course.get_total_price for course in courses)
+            rank_values = [course.avg_vote for course in courses if course.avg_vote is not None]
+            avg_rank = round(sum(rank_values) / len(rank_values), 2) if rank_values else None
+
             for category in author.category.all():
                 image_url = request.build_absolute_uri(category.image.url) if category.image else None
 
-                ka_data.append({
+                data_ka = {
                     "category_id": category.id,
                     "category": category.name_ka,
                     "category_image": image_url,
@@ -68,9 +158,13 @@ class DanceCategoryAuthorView(APIView):
                         "author_is_new": author.is_new,
                         "author_promoted": author.promoted,
                         "author_with_discount": author.with_discount,
-                    }
-                })
-                en_data.append({
+                    },
+                    "rank": avg_rank,
+                    "video_count": total_videos,
+                    "total_price": total_price,
+                }
+
+                data_en = {
                     "category_id": category.id,
                     "category": category.name_en,
                     "category_image": image_url,
@@ -82,24 +176,16 @@ class DanceCategoryAuthorView(APIView):
                         "author_is_new": author.is_new,
                         "author_promoted": author.promoted,
                         "author_with_discount": author.with_discount,
-                    }
-                })
+                    },
+                    "rank": avg_rank,
+                    "video_count": total_videos,
+                    "total_price": total_price,
+                }
 
-        if not ka_data:
-            return Response([], status=200)
-        total_count = len(ka_data)
-        return Response({
-            "pagination": {
-                "page": page,
-                "page_size": page_size,
-                "total_items": total_count,
-                "total_pages": (total_count + page_size - 1) // page_size
-            },
-            "data":{
-                "ka": ka_data,
-                "en": en_data,
-            }  
-        }, status=200)
+                group_data['ka'].append(data_ka)
+                group_data['en'].append(data_en)
+
+        return Response(group_data, status=200)
 
 class CourseView(GenericAPIView):
     serializer_class = CourseSerializer
