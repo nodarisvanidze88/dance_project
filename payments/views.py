@@ -9,7 +9,7 @@ from .serializers import VideoContentSerializer
 from django.utils.timezone import localtime
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
-
+from products.models import Course
 from products.models import VideoContent
 from .models import PaymentOrder
 from .bog.api import create_order
@@ -125,21 +125,85 @@ def payment_status(request, order_id):
 # --------------------------------------------------------------------------
 # 3.  GET /payments/my-videos/              (show everything the user owns)
 # --------------------------------------------------------------------------
+# @api_view(["GET"])
+# @swagger_auto_schema(
+#     operation_summary="Get list of all paid VideoContent for this user",
+#     responses={200: VideoContentSerializer(many=True)},
+# )
+# def my_videos(request):
+#     try:
+#         paid_orders = PaymentOrder.objects.filter(user=request.user, status="completed")
+#         videos = VideoContent.objects.filter(payment_orders__in=paid_orders).distinct()
+#         from .serializers import VideoContentSerializer
+#         return Response(VideoContentSerializer(videos, many=True).data)
+#     except:
+#         return Response({"error": "Authentication required"}, status=401)
+
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 @swagger_auto_schema(
-    operation_summary="Get list of all paid VideoContent for this user",
-    responses={200: VideoContentSerializer(many=True)},
+    operation_summary="Get list of paid Course objects from purchased videos",
+    responses={200: "Courses grouped by 'ka' and 'en'"}
 )
 def my_videos(request):
     try:
+        # 1. Get completed orders for the current user
         paid_orders = PaymentOrder.objects.filter(user=request.user, status="completed")
-        videos = VideoContent.objects.filter(payment_orders__in=paid_orders).distinct()
-        from .serializers import VideoContentSerializer
-        return Response(VideoContentSerializer(videos, many=True).data)
-    except:
-        return Response({"error": "Authentication required"}, status=401)
 
+        # 2. Get all paid videos and extract their courses
+        paid_videos = VideoContent.objects.filter(payment_orders__in=paid_orders).select_related('course')
+        courses = Course.objects.filter(videocontent__in=paid_videos).distinct().select_related('author')
 
+        group_data = {'ka': [], 'en': []}
+
+        for course in courses:
+            image_url = request.build_absolute_uri(course.image.url) if course.image else None
+
+            data_ka = {
+                'course_id': course.id,
+                'course': course.name_ka,
+                'course_image': image_url,
+                'course_description': course.description_ka,
+                'author_data': {
+                    'author_id': course.author.id,
+                    'author': course.author.name_ka,
+                    'author_description': course.author.description_ka,
+                    'author_school_name': course.author.school_name_ka,
+                    'author_is_new': course.author.is_new,
+                    'author_promoted': course.author.promoted,
+                    'author_with_discount': course.author.with_discount
+                },
+                "rank": course.avg_vote,
+                "video_count": course.get_total_videos,
+                "total_price": course.get_total_price,
+            }
+
+            data_en = {
+                'course_id': course.id,
+                'course': course.name_en,
+                'course_image': image_url,
+                'course_description': course.description_en,
+                'author_data': {
+                    'author_id': course.author.id,
+                    'author': course.author.name_en,
+                    'author_description': course.author.description_en,
+                    'author_school_name': course.author.school_name_en,
+                    'author_is_new': course.author.is_new,
+                    'author_promoted': course.author.promoted,
+                    'author_with_discount': course.author.with_discount
+                },
+                "rank": course.avg_vote,
+                "video_count": course.get_total_videos,
+                "total_price": course.get_total_price,
+            }
+
+            group_data['ka'].append(data_ka)
+            group_data['en'].append(data_en)
+
+        return Response(group_data)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=401)
 # --------------------------------------------------------------------------
 # 4.  Bank of Georgia  →  POST /payments/bog/callback/
 # --------------------------------------------------------------------------
