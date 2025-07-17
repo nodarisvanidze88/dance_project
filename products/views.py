@@ -182,53 +182,130 @@ class DanceCategoryAuthorView(APIView):
 
 #         return Response(group_data, status=200)
 
+# class CourseView(GenericAPIView):
+#     serializer_class = CourseSerializer
+#     permission_classes = [IsAuthenticated]
+#     @swagger_auto_schema(
+#             manual_parameters=[
+#                 openapi.Parameter(
+#                     'category_id', 
+#                     openapi.IN_QUERY, 
+#                     description="Category ID", 
+#                     type=openapi.TYPE_INTEGER
+#                     ),
+#                 openapi.Parameter(
+#                     'author_id', 
+#                     openapi.IN_QUERY, 
+#                     description="Author ID", 
+#                     type=openapi.TYPE_INTEGER
+#                     )
+#                 ]
+#             )
+#     def get(self, request):
+#         def build_comment_tree(comment):
+#             return {
+#                 'comment_id': comment.id,
+#                 'comment': comment.comment,
+#                 'user': comment.user.username,
+#                 'created_at': comment.created_at,
+#                 'updated_at': comment.updated_at,
+#                 'is_active': comment.is_active,
+#                 'vote': comment.vote,
+#                 'children': [build_comment_tree(child) for child in comment.replies.all()]
+#             }
+#         category_id = request.query_params.get('category_id')
+#         author_id = request.query_params.get('author_id')
+        
+#         course_data = Course.objects.all()
+#         if author_id:
+#             course_data = course_data.filter(author_id=author_id)
+#         if category_id:
+#             course_data = course_data.filter(author__category__id=category_id)
+#         group_data = {'ka':[], 'en':[]}
+#         for course in course_data:
+#             data_ka = {
+#                 'course_id': course.id,
+#                 'course': course.name_ka,
+#                 'course_image': request.build_absolute_uri(course.image.url) if course.image else None,
+#                 'course_description': course.description_ka,
+#                 'author_data':{
+#                     'author_id': course.author.id,
+#                     'author': course.author.name_ka,
+#                     'author_description': course.author.description_ka,
+#                     'author_school_name': course.author.school_name_ka,
+#                     'author_is_new': course.author.is_new,
+#                     'author_promoted': course.author.promoted,
+#                     'author_with_discount': course.author.with_discount
+#                 },
+#                 "rank": course.avg_vote,
+#                 "video_count": course.get_total_videos,
+#                 "total_price": course.get_total_price,
+                
+#             }
+#             data_en = {
+#                 'course_id': course.id,
+#                 'course': course.name_en,
+#                 'course_image': request.build_absolute_uri(course.image.url) if course.image else None,
+#                 'course_description': course.description_en,
+#                 'author_data':{
+#                     'author_id': course.author.id,
+#                     'author': course.author.name_en,
+#                     'author_description': course.author.description_en,
+#                     'author_school_name': course.author.school_name_en,
+#                     'author_is_new': course.author.is_new,
+#                     'author_promoted': course.author.promoted,
+#                     'author_with_discount': course.author.with_discount
+#                 },
+#                 "rank": course.avg_vote,
+#                 "video_count": course.get_total_videos,
+#                 "total_price": course.get_total_price,
+                
+#             }
+#             group_data['ka'].append(data_ka)
+#             group_data['en'].append(data_en)
+#         return Response(group_data)
+
 class CourseView(GenericAPIView):
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated]
+
     @swagger_auto_schema(
-            manual_parameters=[
-                openapi.Parameter(
-                    'category_id', 
-                    openapi.IN_QUERY, 
-                    description="Category ID", 
-                    type=openapi.TYPE_INTEGER
-                    ),
-                openapi.Parameter(
-                    'author_id', 
-                    openapi.IN_QUERY, 
-                    description="Author ID", 
-                    type=openapi.TYPE_INTEGER
-                    )
-                ]
-            )
+        manual_parameters=[
+            openapi.Parameter('category_id', openapi.IN_QUERY, description="Category ID", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('author_id', openapi.IN_QUERY, description="Author ID", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('search', openapi.IN_QUERY, description="Search text", type=openapi.TYPE_STRING),
+        ]
+    )
     def get(self, request):
-        def build_comment_tree(comment):
-            return {
-                'comment_id': comment.id,
-                'comment': comment.comment,
-                'user': comment.user.username,
-                'created_at': comment.created_at,
-                'updated_at': comment.updated_at,
-                'is_active': comment.is_active,
-                'vote': comment.vote,
-                'children': [build_comment_tree(child) for child in comment.replies.all()]
-            }
         category_id = request.query_params.get('category_id')
         author_id = request.query_params.get('author_id')
-        
+        search_val = request.query_params.get('search')
+
         course_data = Course.objects.all()
+
         if author_id:
             course_data = course_data.filter(author_id=author_id)
         if category_id:
             course_data = course_data.filter(author__category__id=category_id)
-        group_data = {'ka':[], 'en':[]}
+        if search_val:
+            course_data = course_data.filter(
+                Q(name_ka__icontains=search_val) |
+                Q(name_en__icontains=search_val) |
+                Q(description_ka__icontains=search_val) |
+                Q(description_en__icontains=search_val)
+            )
+
+        group_data = {'ka': [], 'en': []}
+
         for course in course_data:
+            image_url = request.build_absolute_uri(course.image.url) if course.image else None
+
             data_ka = {
                 'course_id': course.id,
                 'course': course.name_ka,
-                'course_image': request.build_absolute_uri(course.image.url) if course.image else None,
+                'course_image': image_url,
                 'course_description': course.description_ka,
-                'author_data':{
+                'author_data': {
                     'author_id': course.author.id,
                     'author': course.author.name_ka,
                     'author_description': course.author.description_ka,
@@ -240,14 +317,14 @@ class CourseView(GenericAPIView):
                 "rank": course.avg_vote,
                 "video_count": course.get_total_videos,
                 "total_price": course.get_total_price,
-                
             }
+
             data_en = {
                 'course_id': course.id,
                 'course': course.name_en,
-                'course_image': request.build_absolute_uri(course.image.url) if course.image else None,
+                'course_image': image_url,
                 'course_description': course.description_en,
-                'author_data':{
+                'author_data': {
                     'author_id': course.author.id,
                     'author': course.author.name_en,
                     'author_description': course.author.description_en,
@@ -259,10 +336,11 @@ class CourseView(GenericAPIView):
                 "rank": course.avg_vote,
                 "video_count": course.get_total_videos,
                 "total_price": course.get_total_price,
-                
             }
+
             group_data['ka'].append(data_ka)
             group_data['en'].append(data_en)
+
         return Response(group_data)
     
 class VideoContentView(GenericAPIView):
