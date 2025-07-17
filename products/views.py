@@ -112,7 +112,7 @@ class DanceCategoryAuthorView(APIView):
         ]
     )
     def get(self, request):
-        filters = Q(is_active=True)
+        filters = Q(is_active=True)  # author-level filters
 
         if (val := request.query_params.get('promoted')) is not None:
             filters &= Q(promoted=str_to_bool(val))
@@ -120,70 +120,65 @@ class DanceCategoryAuthorView(APIView):
             filters &= Q(is_new=str_to_bool(val))
         if (val := request.query_params.get('with_discount')) is not None:
             filters &= Q(with_discount=str_to_bool(val))
-        if (val := request.query_params.get('search')) is not None:
-            filters &= (
-                Q(name_ka__icontains=val) |
-                Q(name_en__icontains=val) |
-                Q(description_ka__icontains=val) |
-                Q(description_en__icontains=val) |
-                Q(school_name_ka__icontains=val) |
-                Q(school_name_en__icontains=val)
-            )
 
-        queryset = CourseAuthor.objects.filter(filters).prefetch_related('category', 'course_set')
+        authors = CourseAuthor.objects.filter(filters).prefetch_related('course_set')
+
+        all_courses = Course.objects.filter(author__in=authors).select_related('author')
+
+        # Now apply course-level search (title or description match)
+        if (search_val := request.query_params.get('search')) is not None:
+            all_courses = all_courses.filter(
+                Q(name_ka__icontains=search_val) |
+                Q(name_en__icontains=search_val) |
+                Q(description_ka__icontains=search_val) |
+                Q(description_en__icontains=search_val)
+            )
 
         group_data = {'ka': [], 'en': []}
 
-        for author in queryset:
-            courses = author.course_set.all()
+        for course in all_courses:
+            image_url = request.build_absolute_uri(course.image.url) if course.image else None
 
-            # Calculate totals
-            total_videos = sum(course.get_total_videos for course in courses)
-            total_price = sum(course.get_total_price for course in courses)
-            rank_values = [course.avg_vote for course in courses if course.avg_vote is not None]
-            avg_rank = round(sum(rank_values) / len(rank_values), 2) if rank_values else None
+            data_ka = {
+                'course_id': course.id,
+                'course': course.name_ka,
+                'course_image': image_url,
+                'course_description': course.description_ka,
+                'author_data': {
+                    'author_id': course.author.id,
+                    'author': course.author.name_ka,
+                    'author_description': course.author.description_ka,
+                    'author_school_name': course.author.school_name_ka,
+                    'author_is_new': course.author.is_new,
+                    'author_promoted': course.author.promoted,
+                    'author_with_discount': course.author.with_discount
+                },
+                "rank": course.avg_vote,
+                "video_count": course.get_total_videos,
+                "total_price": course.get_total_price,
+            }
 
-            for category in author.category.all():
-                image_url = request.build_absolute_uri(category.image.url) if category.image else None
+            data_en = {
+                'course_id': course.id,
+                'course': course.name_en,
+                'course_image': image_url,
+                'course_description': course.description_en,
+                'author_data': {
+                    'author_id': course.author.id,
+                    'author': course.author.name_en,
+                    'author_description': course.author.description_en,
+                    'author_school_name': course.author.school_name_en,
+                    'author_is_new': course.author.is_new,
+                    'author_promoted': course.author.promoted,
+                    'author_with_discount': course.author.with_discount
+                },
+                "rank": course.avg_vote,
+                "video_count": course.get_total_videos,
+                "total_price": course.get_total_price,
+            }
 
-                data_ka = {
-                    "category_id": category.id,
-                    "category": category.name_ka,
-                    "category_image": image_url,
-                    "author_data": {
-                        "author_id": author.id,
-                        "author": author.name_ka,
-                        "author_description": author.description_ka,
-                        "author_school_name": author.school_name_ka,
-                        "author_is_new": author.is_new,
-                        "author_promoted": author.promoted,
-                        "author_with_discount": author.with_discount,
-                    },
-                    "rank": avg_rank,
-                    "video_count": total_videos,
-                    "total_price": total_price,
-                }
-
-                data_en = {
-                    "category_id": category.id,
-                    "category": category.name_en,
-                    "category_image": image_url,
-                    "author_data": {
-                        "author_id": author.id,
-                        "author": author.name_en,
-                        "author_description": author.description_en,
-                        "author_school_name": author.school_name_en,
-                        "author_is_new": author.is_new,
-                        "author_promoted": author.promoted,
-                        "author_with_discount": author.with_discount,
-                    },
-                    "rank": avg_rank,
-                    "video_count": total_videos,
-                    "total_price": total_price,
-                }
-
-                group_data['ka'].append(data_ka)
-                group_data['en'].append(data_en)
+            group_data['ka'].append(data_ka)
+            group_data['en'].append(data_en)
 
         return Response(group_data, status=200)
 
