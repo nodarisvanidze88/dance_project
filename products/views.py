@@ -375,7 +375,7 @@ class VideoContentView(GenericAPIView):
 
         # Get set of video IDs the user has paid for
         paid_video_ids = set(
-            PaymentOrder.objects.filter(user=user, status="paid")
+            PaymentOrder.objects.filter(user=user, status="completed")
             .values_list("videos__id", flat=True)
         )
         print("this is paid video ids", paid_video_ids)
