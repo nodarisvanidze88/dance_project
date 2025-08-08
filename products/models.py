@@ -1,7 +1,6 @@
 from django.db import models
 from storages.backends.s3boto3 import S3Boto3Storage
 from accounts.models import CustomUser
-from django.db.models import Sum
 
 class Category(models.Model):
     name_ka = models.CharField(max_length=255, unique=True)
@@ -54,13 +53,13 @@ class Course(models.Model):
 
     @property
     def avg_vote(self):
-        sum_votes = self.comments.aggregate(Sum('vote'))['vote__sum']
-        count_votes = self.comments.count()
-        if count_votes > 0:
-            self.rank = sum_votes / count_votes
-        else:
-            self.rank = 0
-        return self.rank
+        from django.db.models import Avg
+        result = self.votes.aggregate(avg_vote=Avg('vote'))
+        return round(result['avg_vote'] or 0, 2)
+    
+    @property
+    def vote_count(self):
+        return self.votes.count()
     
     @property
     def get_total_videos(self):
@@ -118,6 +117,20 @@ class VideoContent(models.Model):
 
     class Meta:
         ordering = ['rank']
-    
 
-    
+# Add this new model for course voting (separate from comments)
+class CourseVote(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    course = models.ForeignKey("Course", on_delete=models.CASCADE, related_name='votes')
+    vote = models.IntegerField(choices=[(1, '1'), (2, '2'), (3, '3'), (4, '4'), (5, '5')])
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'course')  # One vote per user per course
+
+    def __str__(self):
+        return f"{self.user.username} - {self.course.name_ka} - {self.vote}"
+
+
+

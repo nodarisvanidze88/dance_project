@@ -6,8 +6,8 @@ from .utils import str_to_bool
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Q
 from drf_yasg import openapi
-from .models import Course, CourseAuthor, VideoContent, CourseCommentVotes
-from .serializers import CourseSerializer, VideoContentSerializer, CourseCommentCreateSerializer
+from .models import Course, CourseAuthor, VideoContent, CourseCommentVotes, CourseVote
+from .serializers import CourseSerializer, VideoContentSerializer, CourseCommentCreateSerializer, CourseVoteSerializer
 from rest_framework.permissions import IsAuthenticated
 from payments.models import PaymentOrder
 
@@ -240,7 +240,6 @@ class DanceCategoryAuthorView(APIView):
 #                 "rank": course.avg_vote,
 #                 "video_count": course.get_total_videos,
 #                 "total_price": course.get_total_price,
-                
 #             }
 #             data_en = {
 #                 'course_id': course.id,
@@ -259,7 +258,6 @@ class DanceCategoryAuthorView(APIView):
 #                 "rank": course.avg_vote,
 #                 "video_count": course.get_total_videos,
 #                 "total_price": course.get_total_price,
-                
 #             }
 #             group_data['ka'].append(data_ka)
 #             group_data['en'].append(data_en)
@@ -280,6 +278,7 @@ class CourseView(GenericAPIView):
         category_id = request.query_params.get('category_id')
         author_id = request.query_params.get('author_id')
         search_val = request.query_params.get('search')
+        user = request.user
 
         course_data = Course.objects.all()
 
@@ -295,10 +294,19 @@ class CourseView(GenericAPIView):
                 Q(description_en__icontains=search_val)
             )
 
+        # Get set of course IDs the user has already voted for
+        voted_course_ids = set(
+            CourseVote.objects.filter(user=user)
+            .values_list("course_id", flat=True)
+        )
+
         group_data = {'ka': [], 'en': []}
 
         for course in course_data:
             image_url = request.build_absolute_uri(course.image.url) if course.image else None
+            
+            # Check if user has already voted for this course
+            has_voted = course.id in voted_course_ids
 
             data_ka = {
                 'course_id': course.id,
@@ -314,7 +322,9 @@ class CourseView(GenericAPIView):
                     'author_promoted': course.author.promoted,
                     'author_with_discount': course.author.with_discount
                 },
-                "rank": course.avg_vote,
+                "avg_votes": course.avg_vote,  # Average of votes
+                "vote_count": course.vote_count,  # Number of votes
+                "has_voted": has_voted,  # Boolean indicating if user has voted
                 "video_count": course.get_total_videos,
                 "total_price": course.get_total_price,
             }
@@ -333,7 +343,9 @@ class CourseView(GenericAPIView):
                     'author_promoted': course.author.promoted,
                     'author_with_discount': course.author.with_discount
                 },
-                "rank": course.avg_vote,
+                "avg_votes": course.avg_vote,  # Average of votes
+                "vote_count": course.vote_count,  # Number of votes
+                "has_voted": has_voted,  # Boolean indicating if user has voted
                 "video_count": course.get_total_videos,
                 "total_price": course.get_total_price,
             }
@@ -461,3 +473,97 @@ class CommentView(GenericAPIView):
                 "comment_id": comment.id
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class CourseVoteView(GenericAPIView):
+    serializer_class = CourseVoteSerializer
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        request_body=CourseVoteSerializer,
+        responses={
+            201: "Vote added successfully", 
+            200: "Vote updated successfully",
+            400: "Bad Request"
+        }
+    )
+    def post(self, request):
+        """
+        Submit or update a vote for a course
+        """
+        serializer = self.get_serializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            course_vote = serializer.save()
+            
+            # Check if it's a new vote or update
+            is_new = CourseVote.objects.filter(
+                user=request.user, 
+                course=course_vote.course
+            ).count() == 1
+            
+            status_code = status.HTTP_201_CREATED if is_new else status.HTTP_200_OK
+            message = "Vote added successfully" if is_new else "Vote updated successfully"
+            
+            return Response({
+                "message": message,
+                "vote": course_vote.vote,
+                "course_id": course_vote.course.id
+            }, status=status_code)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'course_id',
+                openapi.IN_QUERY,
+                description="Course ID to get user's vote",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            )
+        ],
+        responses={200: "User's vote for the course", 404: "Vote not found"}
+    )
+    def get(self, request):
+        """
+        Get user's vote for a specific course
+        """
+        course_id = request.query_params.get('course_id')
+        if not course_id:
+            return Response({"detail": "course_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            course_vote = CourseVote.objects.get(user=request.user, course_id=course_id)
+            return Response({
+                "course_id": course_vote.course.id,
+                "vote": course_vote.vote,
+                "created_at": course_vote.created_at,
+                "updated_at": course_vote.updated_at
+            })
+        except CourseVote.DoesNotExist:
+            return Response({"detail": "Vote not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'course_id',
+                openapi.IN_QUERY,
+                description="Course ID to delete user's vote",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            )
+        ],
+        responses={204: "Vote deleted successfully", 404: "Vote not found"}
+    )
+    def delete(self, request):
+        """
+        Delete user's vote for a specific course
+        """
+        course_id = request.query_params.get('course_id')
+        if not course_id:
+            return Response({"detail": "course_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            course_vote = CourseVote.objects.get(user=request.user, course_id=course_id)
+            course_vote.delete()
+            return Response({"message": "Vote deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except CourseVote.DoesNotExist:
+            return Response({"detail": "Vote not found"}, status=status.HTTP_404_NOT_FOUND)
