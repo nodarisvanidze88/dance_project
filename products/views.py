@@ -564,6 +564,6 @@ class CourseVoteView(GenericAPIView):
         try:
             course_vote = CourseVote.objects.get(user=request.user, course_id=course_id)
             course_vote.delete()
-            return Response({"message": "Vote deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            return Response(status=status.HTTP_204_NO_CONTENT)
         except CourseVote.DoesNotExist:
             return Response({"detail": "Vote not found"}, status=status.HTTP_404_NOT_FOUND)
