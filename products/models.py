@@ -98,6 +98,7 @@ class VideoContent(models.Model):
     description_ka = models.TextField(blank=True, null=True)
     description_en = models.TextField(blank=True, null=True)
     video_url = models.URLField()
+    image_url = models.ImageField(upload_to='video_image_url/', blank=True, null=True, storage=S3Boto3Storage())
     thumbnail = models.ImageField(upload_to='video_thumbnails/', blank=True, null=True, storage=S3Boto3Storage())
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='videos', blank=True, null=True)
     demo = models.BooleanField(default=False)
