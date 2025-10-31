@@ -409,6 +409,7 @@ class VideoContentView(GenericAPIView):
                 'video_description': video.description_en,
                 'video_url': video.video_url if has_access or video.demo else None,
                 'video_thumbnail': request.build_absolute_uri(video.thumbnail.url) if video.thumbnail else None,
+                'image_url': request.build_absolute_uri(video.image_url.url) if video.image_url else None,
                 'video_demo': video.demo,
                 'video_price': video.price,
                 'video_discount_price': video.discount_price,
