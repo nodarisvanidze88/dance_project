@@ -77,7 +77,7 @@ def checkout(request):
         }
         for v in videos
     ]
-
+    print(f"this is my basket: {basket}")
     order_id, redirect_url = create_order(amount_lari, basket)
 
     # store in DB
