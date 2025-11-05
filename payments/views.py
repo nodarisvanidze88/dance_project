@@ -69,6 +69,7 @@ def checkout(request):
         (v.discount_price or v.price) for v in videos
     )
 
+
     basket = [
         {
             "product_id": str(v.id),
