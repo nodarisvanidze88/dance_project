@@ -26,13 +26,12 @@ def create_order(amount_lari: int, basket: list[dict]) -> tuple[str, str]:
     }
     print(f"this is my payload: {payload}")
     token = get_token()
-    print(f"this is my token: {token}")
 
     r = requests.post(
         ORDER_URL,
         json=payload,
         headers={
-            "Authorization": f"Bearer {token['access_token']}",
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json",
         },
         timeout=10,
