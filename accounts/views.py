@@ -2,7 +2,7 @@ from rest_framework.response import Response
 from rest_framework.generics import GenericAPIView, CreateAPIView
 from rest_framework import status
 from rest_framework.views import APIView
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.hashers import check_password
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -131,10 +131,13 @@ class LoginView(GenericAPIView):
         email_or_phone = serializer.validated_data['email_or_phone']
         password = serializer.validated_data['password']
         
-        # Authenticate user
-        user = authenticate(request, username=email_or_phone, password=password)
+        # Find user using your existing logic
+        user = CustomUser.objects.filter(
+            Q(email_or_phone=email_or_phone) | Q(email=email_or_phone) | Q(phone=email_or_phone)
+        ).first()
         
-        if user:
+        # Check if user exists and password is correct
+        if user and check_password(password, user.password):
             # Check verification status
             verification_record = UserVerificationCodes.objects.filter(user=user).first()
             
