@@ -44,10 +44,10 @@ class CustomUserManager(BaseUserManager):
         # except Exception as e:
         #     print(f"❌ Failed to create verification code: {e}")
 
-        if user.email:
-            user.send_verification_email()
-        if user.phone:
-            user.send_verification_sms()
+        # if user.email:
+        #     user.send_verification_email()
+        # if user.phone:
+        #     user.send_verification_sms()
 
         return user
 
