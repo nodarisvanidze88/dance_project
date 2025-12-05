@@ -89,39 +89,94 @@ class RegisterView(CreateAPIView):
         
         return Response(result, status=status.HTTP_201_CREATED)
 
+# class LoginView(GenericAPIView):
+#     serializer_class = LoginSerializer
+
+#     def post(self, request, *args, **kwargs):
+#         serializer = self.get_serializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+
+#         email_or_phone = serializer.validated_data.get('email_or_phone')
+#         password = serializer.validated_data['password']
+
+#         # Try to find the user by email_or_phone, email, or phone
+#         user = CustomUser.objects.filter(
+#             Q(email_or_phone=email_or_phone) | Q(email=email_or_phone) | Q(phone=email_or_phone)
+#         ).first()
+#         verifications = UserVerificationCodes.objects.filter(user_id=user.id).first() if user else None
+#         if user and check_password(password, user.password):
+#             # If the password matches, generate tokens
+#             refresh = user.tokens()
+#             result = {
+#                 "access": str(refresh['access']),
+#                 "refresh": str(refresh['refresh']),
+#             }
+#             if user.email:
+#                 result["email_verified"] = verifications.email_verified if verifications else False
+#             if user.phone:
+#                 result["phone_verified"] = verifications.phone_verified if verifications else False
+#             if user.username:
+#                 result["username"] = user.username
+#             return Response(result, status=status.HTTP_200_OK)
+        
+#         # If no user is found or password doesn't match, return invalid credentials error
+#         return Response(get_error_message(errorMessages, "invalidCredentials"), status=status.HTTP_401_UNAUTHORIZED)
 class LoginView(GenericAPIView):
     serializer_class = LoginSerializer
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        email_or_phone = serializer.validated_data.get('email_or_phone')
-        password = serializer.validated_data['password']
-
-        # Try to find the user by email_or_phone, email, or phone
-        user = CustomUser.objects.filter(
-            Q(email_or_phone=email_or_phone) | Q(email=email_or_phone) | Q(phone=email_or_phone)
-        ).first()
-        verifications = UserVerificationCodes.objects.filter(user_id=user.id).first() if user else None
-        if user and check_password(password, user.password):
-            # If the password matches, generate tokens
-            refresh = user.tokens()
-            result = {
-                "access": str(refresh['access']),
-                "refresh": str(refresh['refresh']),
-            }
-            if user.email:
-                result["email_verified"] = verifications.email_verified if verifications else False
-            if user.phone:
-                result["phone_verified"] = verifications.phone_verified if verifications else False
-            if user.username:
-                result["username"] = user.username
-            return Response(result, status=status.HTTP_200_OK)
         
-        # If no user is found or password doesn't match, return invalid credentials error
-        return Response(get_error_message(errorMessages, "invalidCredentials"), status=status.HTTP_401_UNAUTHORIZED)
-
+        email_or_phone = serializer.validated_data['email_or_phone']
+        password = serializer.validated_data['password']
+        
+        # Authenticate user
+        user = authenticate(request, username=email_or_phone, password=password)
+        
+        if user:
+            # Check verification status
+            verification_record = UserVerificationCodes.objects.filter(user=user).first()
+            
+            if not verification_record:
+                return Response({
+                    "detail": get_error_message(errorMessages, "accountNotVerified"),
+                    "verification_required": True,
+                    "verification_type": "email" if "@" in email_or_phone else "phone"
+                }, status=status.HTTP_403_FORBIDDEN)
+            
+            # Check if email or phone is verified based on login method
+            if "@" in email_or_phone:  # Email login
+                if not verification_record.email_verified:
+                    return Response({
+                        "detail": get_error_message(errorMessages, "emailNotVerified"),
+                        "verification_required": True,
+                        "verification_type": "email"
+                    }, status=status.HTTP_403_FORBIDDEN)
+            else:  # Phone login
+                if not verification_record.phone_verified:
+                    return Response({
+                        "detail": get_error_message(errorMessages, "phoneNotVerified"),
+                        "verification_required": True,
+                        "verification_type": "phone"
+                    }, status=status.HTTP_403_FORBIDDEN)
+            
+            # User is verified, proceed with login
+            refresh = user.tokens()
+            return Response({
+                'refresh': str(refresh['refresh']),
+                'access': str(refresh['access']),
+                'user': {
+                    'id': user.id,
+                    'email_or_phone': user.email_or_phone,
+                    'email_verified': verification_record.email_verified if verification_record else False,
+                    'phone_verified': verification_record.phone_verified if verification_record else False,
+                }
+            })
+        else:
+            return Response({
+                "detail": get_error_message(errorMessages, "invalidCredentials")
+            }, status=status.HTTP_401_UNAUTHORIZED)
 class LogoutView(GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = LogoutSerializer
