@@ -226,10 +226,11 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 )
                 logger.info(f"Created new verification record: {user_verification.id}")
         else:
-            # Create new user
+            # Create new user WITHOUT automatic verification sending
             user = User.objects.create_user(
                 email_or_phone=email_or_phone,
-                password=password
+                password=password,
+                send_verification=False  # Add this parameter to disable auto-verification
             )
             
             # Set email or phone based on type
@@ -240,7 +241,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
             user.save()
             logger.info(f"Created new user: {user.id}")
 
-            # Create verification code record
+            # Create verification code record manually
             user_verification = UserVerificationCodes.objects.create(
                 user=user,
                 code=verification_code
@@ -248,26 +249,29 @@ class RegistrationSerializer(serializers.ModelSerializer):
             logger.info(f"Created verification record: {user_verification.id}")
 
         # Send verification code - with better error handling
+        verification_sent = False
         try:
             if is_email:
                 logger.info(f"Attempting to send email verification to {email_or_phone}")
                 result = user_verification.send_verification_email()
                 logger.info(f"Email send result: {result}")
+                verification_sent = True
             elif is_phone:
                 logger.info(f"Attempting to send SMS verification to {email_or_phone}")
                 result = user_verification.send_verification_sms()
                 logger.info(f"SMS send result: {result}")
+                verification_sent = True
         except Exception as e:
             logger.error(f"Error sending verification message: {str(e)}", exc_info=True)
-            # You might want to raise an exception here if message sending is critical
-            # raise serializers.ValidationError({"detail": "Failed to send verification message"})
+            verification_sent = False
 
         # Store verification info for response
-        user._verification_sent = True
+        user._verification_sent = verification_sent
         user._verification_type = "email" if is_email else "phone"
-        
+        user._verification_code = verification_code  # For debugging only
         
         return user
+        
 class LoginSerializer(serializers.Serializer):
     email_or_phone = serializers.CharField(
         required=True,

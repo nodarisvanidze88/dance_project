@@ -21,7 +21,36 @@ def validate_email_or_phone(value):
             raise ValidationError(message=get_error_message(errorMessages,'emailOrPhoneValidator'))
 
 class CustomUserManager(BaseUserManager):
-    def create_user(self, email_or_phone=None, password=None):
+    # def create_user(self, email_or_phone=None, password=None):
+    #     if not email_or_phone:
+    #         raise ValueError(get_error_message(errorMessages,'emailOrPhoneValidator'))
+    #     if "@" in email_or_phone:
+    #         email = self.normalize_email(email_or_phone)
+    #         user = self.model(email_or_phone=email, email=email)
+    #     elif email_or_phone.startswith("+995"):
+    #         phone = email_or_phone
+    #         user = self.model(email_or_phone=phone, phone=phone)
+    #     else:
+    #         raise ValueError(get_error_message(errorMessages,'emailOrPhoneValidator'))
+    #     if password:
+    #         user.set_password(password)
+    #     user.save(using=self._db)
+    #     # try:
+    #     #     instance, created = UserVerificationCodes.objects.get_or_create(user=user)
+    #         # instance.save()
+    #         # if created:
+    #         #     instance.code = str(random.randint(100000, 999999))
+    #         #     instance.save()
+    #     # except Exception as e:
+    #     #     print(f"❌ Failed to create verification code: {e}")
+
+    #     # if user.email:
+    #     #     user.send_verification_email()
+    #     # if user.phone:
+    #     #     user.send_verification_sms()
+
+    #     return user
+    def create_user(self, email_or_phone=None, password=None, send_verification=True):
         if not email_or_phone:
             raise ValueError(get_error_message(errorMessages,'emailOrPhoneValidator'))
         if "@" in email_or_phone:
@@ -35,24 +64,17 @@ class CustomUserManager(BaseUserManager):
         if password:
             user.set_password(password)
         user.save(using=self._db)
-        # try:
-        #     instance, created = UserVerificationCodes.objects.get_or_create(user=user)
-            # instance.save()
-            # if created:
-            #     instance.code = str(random.randint(100000, 999999))
-            #     instance.save()
-        # except Exception as e:
-        #     print(f"❌ Failed to create verification code: {e}")
 
-        # if user.email:
-        #     user.send_verification_email()
-        # if user.phone:
-        #     user.send_verification_sms()
+        # Only send verification if requested
+        if send_verification:
+            if user.email:
+                user.send_verification_email()
+            if user.phone:
+                user.send_verification_sms()
 
         return user
-
     def create_superuser(self, email_or_phone=None, password=None):
-        user = self.create_user(email_or_phone, password)
+        user = self.create_user(email_or_phone, password, send_verification=False)
         user.is_admin = True
         user.is_staff = True
         user.is_superuser = True
