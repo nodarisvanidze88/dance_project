@@ -21,6 +21,35 @@ import random
 import os
 User = get_user_model()
 load_dotenv()
+# class RegisterView(CreateAPIView):
+#     serializer_class = RegistrationSerializer
+
+#     def create(self, request, *args, **kwargs):
+#         serializer = self.get_serializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#         user = serializer.save()
+#         user_code_data = UserVerificationCodes.objects.filter(user_id=request.data.get('user_id')).first()
+#         refresh = user.tokens()
+#         result = {
+#             "email_or_phone": serializer.data['email_or_phone'],
+#             "refresh": str(refresh['refresh']),
+#             "access": str(refresh['access'])
+#         }
+#         if user_code_data:
+#             try:
+#                 custom_email_validator(serializer.data['email_or_phone'])
+#             except:
+#                 pass
+#             else:
+#                 result["email_verified"] = user_code_data.email_verified
+#             try:
+#                 custom_phone_validator(serializer.data['email_or_phone'])
+#             except:
+#                 pass
+#             else:
+#                 result["phone_verified"] = user_code_data.phone_verified
+#         return Response(result, status=status.HTTP_201_CREATED)
+
 class RegisterView(CreateAPIView):
     serializer_class = RegistrationSerializer
 
@@ -28,28 +57,34 @@ class RegisterView(CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        user_code_data = UserVerificationCodes.objects.filter(user_id=request.data.get('user_id')).first()
+        
+        # Get the verification record
+        user_code_data = UserVerificationCodes.objects.filter(user=user).first()
+        
         refresh = user.tokens()
         result = {
-            "email_or_phone": serializer.data['email_or_phone'],
+            "email_or_phone": serializer.validated_data['email_or_phone'],
             "refresh": str(refresh['refresh']),
-            "access": str(refresh['access'])
+            "access": str(refresh['access']),
+            "message": "Registration successful. Please verify your email or phone."
         }
+        
         if user_code_data:
+            # Determine verification status based on registration type
             try:
-                custom_email_validator(serializer.data['email_or_phone'])
-            except:
-                pass
-            else:
+                custom_email_validator(serializer.validated_data['email_or_phone'])
                 result["email_verified"] = user_code_data.email_verified
-            try:
-                custom_phone_validator(serializer.data['email_or_phone'])
+                result["verification_type"] = "email"
             except:
-                pass
-            else:
-                result["phone_verified"] = user_code_data.phone_verified
+                try:
+                    custom_phone_validator(serializer.validated_data['email_or_phone'])
+                    result["phone_verified"] = user_code_data.phone_verified
+                    result["verification_type"] = "phone"
+                except:
+                    pass
+        
         return Response(result, status=status.HTTP_201_CREATED)
-    
+
 class LoginView(GenericAPIView):
     serializer_class = LoginSerializer
 

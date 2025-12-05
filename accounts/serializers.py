@@ -2,110 +2,251 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from rest_framework.exceptions import ValidationError
 from django.db import IntegrityError
+from django.db.models import Q
+import random
 from .validators import validate_password
 from .models import validate_email_or_phone, UserVerificationCodes
 from .errorMessageHandler import errorMessages, get_error_message
 from .validators import custom_email_validator, custom_phone_validator
 User = get_user_model()
 
-class RegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(
-        write_only=True,
-        required=True,
-        validators=[validate_password],
+# class RegistrationSerializer(serializers.ModelSerializer):
+#     password = serializers.CharField(
+#         write_only=True,
+#         required=True,
+#         validators=[validate_password],
         
-    )
-    password2 = serializers.CharField(
-        write_only=True, 
-        required=True,
-    )
-    email_or_phone = serializers.CharField(
-        required=True,
-        validators=[validate_email_or_phone]
-    )
+#     )
+#     password2 = serializers.CharField(
+#         write_only=True, 
+#         required=True,
+#     )
+#     email_or_phone = serializers.CharField(
+#         required=True,
+#         validators=[validate_email_or_phone]
+#     )
+#     class Meta:
+#         model = User
+#         fields = ['email_or_phone','password','password2']
+
+#     def to_internal_value(self, data):
+#         """
+#         Override to ensure multilingual error formatting.
+#         """
+#         email_or_phone_content = data.get('email_or_phone')
+#         try:
+#             return super().to_internal_value(data)
+#         except ValidationError as exc:
+#             detail = exc.detail
+#             for field, messages in detail.items():
+#                 if isinstance(messages, list) and isinstance(messages[0], dict):
+#                     detail[field] = messages  
+#                 else:
+#                     if field in ['password','password2']:
+#                         detail[field] = [get_error_message(errorMessages,"passwordRequired")]
+#                     elif field == 'email_or_phone' and not email_or_phone_content:
+#                         detail[field] = [get_error_message(errorMessages, "emailOrPhoneRequired")]
+#                     elif field == 'email_or_phone' and email_or_phone_content:
+#                         detail[field] = [get_error_message(errorMessages, "emailOrPhoneValidator")]
+#             raise ValidationError(detail)
+        
+#     def run_validation(self, data):
+#         """
+#         Override to provide multilingual required field error messages.
+#         """
+#         if not data:
+#             errors = {
+#                 "email_or_phone": [
+#                     get_error_message(errorMessages, "emailOrPhoneRequired")
+#                 ],
+#                 "password": [
+#                     get_error_message(errorMessages, "passwordRequired")
+#                 ],
+#                 "password2": [
+#                     get_error_message(errorMessages, "passwordRequired")
+#                 ],
+#             }
+#             raise ValidationError(errors)
+#         return super().run_validation(data)
+#     def validate(self, attrs):
+#         email_or_phone = attrs.get('email_or_phone')
+#         password = attrs.get('password')
+#         password2 = attrs.get('password2')
+#         if not password:
+#             raise ValidationError({"password": get_error_message(errorMessages, "passwordRequired")})
+#         if not password2:
+#             raise ValidationError({"password2": get_error_message(errorMessages, "passwordRequired")})
+#         if not email_or_phone:
+#             raise ValidationError(get_error_message(errorMessages,"emailOrPhoneRequired"))
+#         if attrs['password'] != attrs['password2']:
+#             raise serializers.ValidationError({"password": [get_error_message(errorMessages, "passwordsNotMatch")]})
+#         return attrs
+    
+#     def create(self, validated_data):
+#         email_or_phone=validated_data['email_or_phone']
+#         password = validated_data['password']
+#         if "@" in email_or_phone:
+#             email = email_or_phone
+#             phone = None
+#         elif email_or_phone.startswith("+995"):
+#             phone = email_or_phone
+#             email = None
+#         else:
+#             raise ValidationError(get_error_message(errorMessages, "emailOrPhoneValidator"))
+
+#         try:
+#             user = User.objects.create_user(
+#                 email_or_phone=email_or_phone,
+#                 password=password
+#             )
+#         except IntegrityError:
+#             # This is the actual "duplicate key" type error
+#             raise ValidationError(get_error_message(errorMessages, "userExcist"))
+#         except Exception as e:
+#             # Re-raise or handle other error, so you can see what’s really happening
+#             raise e
+
+#         return user
+class RegistrationSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True)
+    email_or_phone = serializers.CharField(required=True)
+
     class Meta:
         model = User
-        fields = ['email_or_phone','password','password2']
+        fields = ['email_or_phone', 'password', 'password2']
 
-    def to_internal_value(self, data):
-        """
-        Override to ensure multilingual error formatting.
-        """
-        email_or_phone_content = data.get('email_or_phone')
-        try:
-            return super().to_internal_value(data)
-        except ValidationError as exc:
-            detail = exc.detail
-            for field, messages in detail.items():
-                if isinstance(messages, list) and isinstance(messages[0], dict):
-                    detail[field] = messages  
-                else:
-                    if field in ['password','password2']:
-                        detail[field] = [get_error_message(errorMessages,"passwordRequired")]
-                    elif field == 'email_or_phone' and not email_or_phone_content:
-                        detail[field] = [get_error_message(errorMessages, "emailOrPhoneRequired")]
-                    elif field == 'email_or_phone' and email_or_phone_content:
-                        detail[field] = [get_error_message(errorMessages, "emailOrPhoneValidator")]
-            raise ValidationError(detail)
-        
-    def run_validation(self, data):
-        """
-        Override to provide multilingual required field error messages.
-        """
-        if not data:
-            errors = {
-                "email_or_phone": [
-                    get_error_message(errorMessages, "emailOrPhoneRequired")
-                ],
-                "password": [
-                    get_error_message(errorMessages, "passwordRequired")
-                ],
-                "password2": [
-                    get_error_message(errorMessages, "passwordRequired")
-                ],
-            }
-            raise ValidationError(errors)
-        return super().run_validation(data)
     def validate(self, attrs):
         email_or_phone = attrs.get('email_or_phone')
         password = attrs.get('password')
         password2 = attrs.get('password2')
-        if not password:
-            raise ValidationError({"password": get_error_message(errorMessages, "passwordRequired")})
-        if not password2:
-            raise ValidationError({"password2": get_error_message(errorMessages, "passwordRequired")})
-        if not email_or_phone:
-            raise ValidationError(get_error_message(errorMessages,"emailOrPhoneRequired"))
-        if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({"password": [get_error_message(errorMessages, "passwordsNotMatch")]})
-        return attrs
-    
-    def create(self, validated_data):
-        email_or_phone=validated_data['email_or_phone']
-        password = validated_data['password']
-        if "@" in email_or_phone:
-            email = email_or_phone
-            phone = None
-        elif email_or_phone.startswith("+995"):
-            phone = email_or_phone
-            email = None
-        else:
-            raise ValidationError(get_error_message(errorMessages, "emailOrPhoneValidator"))
 
+        if password != password2:
+            raise serializers.ValidationError({
+                "password": [get_error_message(errorMessages, "passwordsNotMatch")]
+            })
+
+        # Validate email or phone format
+        is_email = False
+        is_phone = False
+        
         try:
+            custom_email_validator(email_or_phone)
+            is_email = True
+        except:
+            try:
+                custom_phone_validator(email_or_phone)
+                is_phone = True
+            except:
+                raise serializers.ValidationError({
+                    "email_or_phone": [get_error_message(errorMessages, "emailOrPhoneValidator")]
+                })
+
+        # Check if user already exists
+        existing_user = User.objects.filter(
+            Q(email_or_phone=email_or_phone) | 
+            Q(email=email_or_phone) | 
+            Q(phone=email_or_phone)
+        ).first()
+
+        if existing_user:
+            verification_code = UserVerificationCodes.objects.filter(user=existing_user).first()
+            
+            if verification_code:
+                # Check verification status based on the type of registration
+                if is_email and verification_code.email_verified:
+                    raise serializers.ValidationError({
+                        "email_or_phone": [get_error_message(errorMessages, "emailAlreadyVerified")]
+                    })
+                elif is_phone and verification_code.phone_verified:
+                    raise serializers.ValidationError({
+                        "email_or_phone": [get_error_message(errorMessages, "phoneAlreadyVerified")]
+                    })
+                else:
+                    # User exists but not verified - we'll overwrite in create method
+                    attrs['existing_user'] = existing_user
+                    attrs['is_email'] = is_email
+                    attrs['is_phone'] = is_phone
+            else:
+                # User exists but no verification record - we'll overwrite
+                attrs['existing_user'] = existing_user
+                attrs['is_email'] = is_email
+                attrs['is_phone'] = is_phone
+
+        attrs['is_email'] = is_email
+        attrs['is_phone'] = is_phone
+        return attrs
+
+    def create(self, validated_data):
+        email_or_phone = validated_data['email_or_phone']
+        password = validated_data['password']
+        existing_user = validated_data.get('existing_user')
+        is_email = validated_data['is_email']
+        is_phone = validated_data['is_phone']
+
+        verification_code = str(random.randint(100000, 999999))
+
+        if existing_user:
+            # Update existing user (overwrite registration)
+            user = existing_user
+            user.set_password(password)
+            
+            # Update email or phone fields
+            if is_email:
+                user.email = email_or_phone
+                user.email_or_phone = email_or_phone
+            elif is_phone:
+                user.phone = email_or_phone
+                user.email_or_phone = email_or_phone
+            
+            user.save()
+
+            # Update or create verification code
+            user_verification, created = UserVerificationCodes.objects.get_or_create(
+                user=user,
+                defaults={'code': verification_code}
+            )
+            
+            if not created:
+                # Reset verification status for the new registration attempt
+                if is_email:
+                    user_verification.email_verified = False
+                elif is_phone:
+                    user_verification.phone_verified = False
+                user_verification.code = verification_code
+                user_verification.save()
+
+        else:
+            # Create new user
             user = User.objects.create_user(
                 email_or_phone=email_or_phone,
                 password=password
             )
-        except IntegrityError:
-            # This is the actual "duplicate key" type error
-            raise ValidationError(get_error_message(errorMessages, "userExcist"))
+            
+            # Set email or phone based on type
+            if is_email:
+                user.email = email_or_phone
+            elif is_phone:
+                user.phone = email_or_phone
+            user.save()
+
+            # Create verification code record
+            user_verification = UserVerificationCodes.objects.create(
+                user=user,
+                code=verification_code
+            )
+
+        # Send verification code
+        try:
+            if is_email:
+                user_verification.send_verification_email()
+            elif is_phone:
+                user_verification.send_verification_sms()
         except Exception as e:
-            # Re-raise or handle other error, so you can see what’s really happening
-            raise e
+            # Log the error but don't fail registration
+            pass
 
         return user
-
 class LoginSerializer(serializers.Serializer):
     email_or_phone = serializers.CharField(
         required=True,

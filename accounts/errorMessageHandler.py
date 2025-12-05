@@ -77,6 +77,14 @@ errorMessages = {
                     "User not found"],
     "invalidPhoneOrEmail": ["არასწორი ტელეფონი ან ელ.ფოსტა",
                              "Invalid phone number or email address"],
+    "emailAlreadyVerified": {
+        "ka": "ეს ელ.ფოსტა უკვე დადასტურებულია და გამოყენებულია",
+        "en": "This email is already verified and in use"
+    },
+    "phoneAlreadyVerified": {
+        "ka": "ეს ტელეფონის ნომერი უკვე დადასტურებულია და გამოყენებულია",
+        "en": "This phone number is already verified and in use"
+    },
 }
 
 def get_error_message(messages,key):
