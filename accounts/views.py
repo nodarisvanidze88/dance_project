@@ -66,7 +66,9 @@ class RegisterView(CreateAPIView):
             "email_or_phone": serializer.validated_data['email_or_phone'],
             "refresh": str(refresh['refresh']),
             "access": str(refresh['access']),
-            "message": "Registration successful. Please verify your email or phone."
+            "message": "Registration successful. Please verify your email or phone.",
+            "verification_code_sent": getattr(user, '_verification_sent', False),
+            "verification_type": getattr(user, '_verification_type', None)
         }
         
         if user_code_data:
@@ -74,14 +76,16 @@ class RegisterView(CreateAPIView):
             try:
                 custom_email_validator(serializer.validated_data['email_or_phone'])
                 result["email_verified"] = user_code_data.email_verified
-                result["verification_type"] = "email"
             except:
                 try:
                     custom_phone_validator(serializer.validated_data['email_or_phone'])
                     result["phone_verified"] = user_code_data.phone_verified
-                    result["verification_type"] = "phone"
                 except:
                     pass
+        
+        # Add verification code to response for debugging (remove in production)
+        # if settings.DEBUG:
+        #     result["debug_verification_code"] = getattr(user, '_verification_code', None)
         
         return Response(result, status=status.HTTP_201_CREATED)
 

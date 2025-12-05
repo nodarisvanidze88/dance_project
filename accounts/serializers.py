@@ -4,6 +4,9 @@ from rest_framework.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db.models import Q
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 from .validators import validate_password
 from .models import validate_email_or_phone, UserVerificationCodes
 from .errorMessageHandler import errorMessages, get_error_message
@@ -165,13 +168,11 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 else:
                     # User exists but not verified - we'll overwrite in create method
                     attrs['existing_user'] = existing_user
-                    attrs['is_email'] = is_email
-                    attrs['is_phone'] = is_phone
+                    attrs['verification_code_record'] = verification_code
             else:
                 # User exists but no verification record - we'll overwrite
                 attrs['existing_user'] = existing_user
-                attrs['is_email'] = is_email
-                attrs['is_phone'] = is_phone
+                attrs['verification_code_record'] = None
 
         attrs['is_email'] = is_email
         attrs['is_phone'] = is_phone
@@ -181,10 +182,14 @@ class RegistrationSerializer(serializers.ModelSerializer):
         email_or_phone = validated_data['email_or_phone']
         password = validated_data['password']
         existing_user = validated_data.get('existing_user')
+        existing_verification = validated_data.get('verification_code_record')
         is_email = validated_data['is_email']
         is_phone = validated_data['is_phone']
 
+        # Generate new verification code
         verification_code = str(random.randint(100000, 999999))
+        
+        logger.info(f"Registration attempt for {email_or_phone}, is_email: {is_email}, existing_user: {bool(existing_user)}")
 
         if existing_user:
             # Update existing user (overwrite registration)
@@ -200,22 +205,26 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 user.email_or_phone = email_or_phone
             
             user.save()
+            logger.info(f"Updated existing user: {user.id}")
 
             # Update or create verification code
-            user_verification, created = UserVerificationCodes.objects.get_or_create(
-                user=user,
-                defaults={'code': verification_code}
-            )
-            
-            if not created:
+            if existing_verification:
                 # Reset verification status for the new registration attempt
                 if is_email:
-                    user_verification.email_verified = False
+                    existing_verification.email_verified = False
                 elif is_phone:
-                    user_verification.phone_verified = False
-                user_verification.code = verification_code
-                user_verification.save()
-
+                    existing_verification.phone_verified = False
+                existing_verification.code = verification_code
+                existing_verification.save()
+                user_verification = existing_verification
+                logger.info(f"Updated existing verification record: {user_verification.id}")
+            else:
+                # Create new verification record
+                user_verification = UserVerificationCodes.objects.create(
+                    user=user,
+                    code=verification_code
+                )
+                logger.info(f"Created new verification record: {user_verification.id}")
         else:
             # Create new user
             user = User.objects.create_user(
@@ -229,23 +238,35 @@ class RegistrationSerializer(serializers.ModelSerializer):
             elif is_phone:
                 user.phone = email_or_phone
             user.save()
+            logger.info(f"Created new user: {user.id}")
 
             # Create verification code record
             user_verification = UserVerificationCodes.objects.create(
                 user=user,
                 code=verification_code
             )
+            logger.info(f"Created verification record: {user_verification.id}")
 
-        # Send verification code
+        # Send verification code - with better error handling
         try:
             if is_email:
-                user_verification.send_verification_email()
+                logger.info(f"Attempting to send email verification to {email_or_phone}")
+                result = user_verification.send_verification_email()
+                logger.info(f"Email send result: {result}")
             elif is_phone:
-                user_verification.send_verification_sms()
+                logger.info(f"Attempting to send SMS verification to {email_or_phone}")
+                result = user_verification.send_verification_sms()
+                logger.info(f"SMS send result: {result}")
         except Exception as e:
-            # Log the error but don't fail registration
-            pass
+            logger.error(f"Error sending verification message: {str(e)}", exc_info=True)
+            # You might want to raise an exception here if message sending is critical
+            # raise serializers.ValidationError({"detail": "Failed to send verification message"})
 
+        # Store verification info for response
+        user._verification_sent = True
+        user._verification_type = "email" if is_email else "phone"
+        
+        
         return user
 class LoginSerializer(serializers.Serializer):
     email_or_phone = serializers.CharField(
