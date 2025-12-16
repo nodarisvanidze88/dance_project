@@ -1,5 +1,6 @@
 from accounts.models import CustomUser
 from django.db import models
+from django.core.validators import MinValueValidator
 from products.models import VideoContent            # your existing app
 
 class PaymentOrder(models.Model):
@@ -13,7 +14,11 @@ class PaymentOrder(models.Model):
     videos   = models.ManyToManyField(VideoContent, related_name="payment_orders")
 
     order_id = models.CharField(max_length=60, unique=True)
-    amount   = models.PositiveIntegerField()             # tetri (integer)
+    amount   = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(0)]
+    )             # tetri (decimal)
     status   = models.CharField(max_length=30, default="created")  # created/paid/failed…
 
     created_at = models.DateTimeField(auto_now_add=True)
