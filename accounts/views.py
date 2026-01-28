@@ -138,6 +138,19 @@ class LoginView(GenericAPIView):
         
         # Check if user exists and password is correct
         if user and check_password(password, user.password):
+            if user.is_superuser:
+                refresh = user.tokens()
+                return Response({
+                    "refresh": str(refresh['refresh']),
+                    "access": str(refresh['access']),
+                    "user": {
+                        "id": user.id,
+                        "email_or_phone": user.email_or_phone,
+                        "email_verified": True,
+                        "phone_verified": True,
+                        "is_superuser": True,
+                    }
+                })
             # Check verification status
             verification_record = UserVerificationCodes.objects.filter(user=user).first()
             
