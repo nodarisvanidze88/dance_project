@@ -1,4 +1,4 @@
-from rest_framework.generics import GenericAPIView
+from rest_framework.generics import GenericAPIView, ListAPIView
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -6,10 +6,18 @@ from .utils import str_to_bool
 from drf_yasg.utils import swagger_auto_schema
 from django.db.models import Q
 from drf_yasg import openapi
-from .models import Course, CourseAuthor, VideoContent, CourseCommentVotes, CourseVote
-from .serializers import CourseSerializer, VideoContentSerializer, CourseCommentCreateSerializer, CourseVoteSerializer
+from .models import Course, CourseAuthor, VideoContent, CourseCommentVotes, CourseVote, MediaAsset
+from .serializers import CourseSerializer, VideoContentSerializer, CourseCommentCreateSerializer, CourseVoteSerializer, MediaAssetSerializer
 from rest_framework.permissions import IsAuthenticated
 from payments.models import PaymentOrder
+
+
+class MediaAssetListView(ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = MediaAssetSerializer
+
+    def get_queryset(self):
+        return MediaAsset.objects.filter(is_active=True).order_by('-created_at')
 
 class DanceCategoryAuthorView(APIView):
     permission_classes = [IsAuthenticated]

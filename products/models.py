@@ -134,4 +134,26 @@ class CourseVote(models.Model):
         return f"{self.user.username} - {self.course.name_ka} - {self.vote}"
 
 
+class MediaAsset(models.Model):
+    IMAGE = "image"
+    VIDEO = "video"
+    TYPE_CHOICES = (
+        (IMAGE, "Image"),
+        (VIDEO, "Video"),
+    )
+
+    name = models.CharField(max_length=255)
+    file = models.FileField(upload_to='media_assets/', storage=S3Boto3Storage())
+    asset_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def file_url(self):
+        return self.file.url if self.file else None
+
+    def __str__(self):
+        return self.name
+
+
 

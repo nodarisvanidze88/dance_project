@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Course, Category, CourseAuthor, VideoContent, CourseCommentVotes, CourseVote
+from .models import Course, Category, CourseAuthor, VideoContent, CourseCommentVotes, CourseVote, MediaAsset
 
 class AuthorSerializer(serializers.ModelSerializer):
     class Meta:
@@ -65,3 +65,14 @@ class CourseVoteSerializer(serializers.ModelSerializer):
             defaults={'vote': vote}
         )
         return course_vote
+
+
+class MediaAssetSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MediaAsset
+        fields = ["id", "name", "url", "asset_type", "is_active", "created_at"]
+
+    def get_url(self, obj):
+        return obj.file_url
