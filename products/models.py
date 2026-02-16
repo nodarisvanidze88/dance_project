@@ -144,6 +144,7 @@ class MediaAsset(models.Model):
 
     name = models.CharField(max_length=255)
     file = models.FileField(upload_to='media_assets/', storage=S3Boto3Storage())
+    company_url = models.URLField(blank=True, null=True)
     asset_type = models.CharField(max_length=10, choices=TYPE_CHOICES)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -72,7 +72,7 @@ class MediaAssetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MediaAsset
-        fields = ["id", "name", "url", "asset_type", "is_active", "created_at"]
+        fields = ["id", "name", "company_url", "url", "asset_type", "is_active", "created_at"]
 
     def get_url(self, obj):
         return obj.file_url
