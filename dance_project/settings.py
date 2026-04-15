@@ -15,8 +15,6 @@ from pathlib import Path
 from datetime import timedelta
 import os
 from dotenv import load_dotenv
-import logging
-from pythonjsonlogger import jsonlogger
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -241,18 +239,11 @@ DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 SENDER_GE_API_KEY = os.getenv("SENDER_GE_API_KEY")
 
-LOGGLY_TOKEN = os.getenv("LOGGLY_TOKEN")
-LOGGLY_TAG = os.getenv("LOGGLY_TAG", "django-app")
-
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
 
     'formatters': {
-        'json': {
-            '()': 'pythonjsonlogger.jsonlogger.JsonFormatter',
-            'fmt': '%(asctime)s %(levelname)s %(name)s %(message)s',
-        },
         'simple': {
             'format': '[%(asctime)s] %(levelname)s %(name)s: %(message)s'
         },
@@ -260,102 +251,52 @@ LOGGING = {
 
     'handlers': {
         'console': {
-            'level': 'DEBUG',  # აქ ხედავ ყველაფერს ტერმინალში
+            'level': 'INFO',
             'class': 'logging.StreamHandler',
             'formatter': 'simple',
-        },
-        'loggly': {
-            'level': 'WARNING',  # მხოლოდ WARNING და ზემოთ წავა Loggly-ზე
-            'class': 'logging.handlers.HTTPHandler',
-            'formatter': 'json',
-            'host': 'logs-01.loggly.com',
-            'url': f'/inputs/{LOGGLY_TOKEN}/tag/{LOGGLY_TAG}/',
-            'method': 'POST',
         },
     },
 
     'root': {
-        'handlers': ['console', 'loggly'],
-        'level': 'DEBUG',
+        'handlers': ['console'],
+        'level': 'WARNING',
     },
 
     'loggers': {
         'django': {
-            'handlers': ['console', 'loggly'],
+            'handlers': ['console'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
         },
-        # შეგიძლია დაამატო custom აპების ლოგერები აქ
         'products': {
-            'handlers': ['console', 'loggly'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
         'accounts': {
-            'handlers': ['console', 'loggly'],
+            'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
         },
         'django.db.backends': {
-            'handlers': ['console', 'loggly'],
-            'level': 'DEBUG',
+            'handlers': ['console'],
+            'level': 'WARNING',
             'propagate': False,
         },
         'django.request': {
-            'handlers': ['console', 'loggly'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'django.security': {
-            'handlers': ['console', 'loggly'],
+            'handlers': ['console'],
             'level': 'ERROR',
             'propagate': False,
         },
         'django.server': {
-            'handlers': ['console', 'loggly'],
+            'handlers': ['console'],
             'level': 'ERROR',
             'propagate': False,
         },
-        'django.security.DisallowedHost': {
-            'handlers': ['console', 'loggly'],
+        'django.security': {
+            'handlers': ['console'],
             'level': 'ERROR',
             'propagate': False,
         },
-        'django.security.DisallowedRedirect': {
-            'handlers': ['console', 'loggly'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'django.security.SuspiciousOperation': {
-            'handlers': ['console', 'loggly'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'django.security.InvalidToken': {
-            'handlers': ['console', 'loggly'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'django.security.SuspiciousFileOperation': {
-            'handlers': ['console', 'loggly'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'django.security.SuspiciousMultipartForm': {
-            'handlers': ['console', 'loggly'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'django.security.SuspiciousSession': {
-            'handlers': ['console', 'loggly'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        'django.security.SuspiciousFileOperation': {
-            'handlers': ['console', 'loggly'],
-            'level': 'ERROR',
-            'propagate': False,
-        },
-        
     }
 }
