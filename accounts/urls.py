@@ -11,6 +11,8 @@ from .jwt_serializers import CustomTokenRefreshSerializer
 class CustomTokenRefreshView(TokenRefreshView):
     serializer_class = CustomTokenRefreshSerializer
 
+
+
 urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('registration/', RegisterView.as_view(), name='registration'),
